@@ -118,34 +118,38 @@ const App = () => {
     const todos = [];
 
     entries.forEach(entry => {
+      // Parse data if it's a string (bot saves as JSON string)
+      const data = typeof entry.data === 'string' ? JSON.parse(entry.data) : entry.data;
+      
       if (entry.category === 'finance') {
-        const date = new Date(entry.timestamp);
+        const date = new Date(data.date || entry.created_at);
         finance.push({
           date: `${date.getMonth() + 1}/${date.getDate()}`,
-          fullDate: entry.timestamp,
-          amount: entry.data.amount || 0,
-          category: entry.data.category || entry.data.description || 'other'
+          fullDate: data.date || entry.created_at,
+          amount: Math.abs(data.amount || 0), // Use absolute value for display
+          category: data.subcategory || data.description || 'other'
         });
       } else if (entry.category === 'dating') {
         const person = {
-          name: entry.data.person || 'Unknown',
-          notes: entry.data.notes || ''
+          name: data.person || 'Unknown',
+          notes: data.notes || data.activity || ''
         };
         
-        // Categorize based on status or type
-        const status = entry.data.status || entry.data.type || 'backBurner';
-        if (status.includes('active') || status.includes('pursuit') || entry.data.lastDate) {
+        // Map to dashboard categories based on new status field
+        const status = data.status || 'backburner';
+        if (status === 'active') {
           dating.activePursuit.push(person);
-        } else if (status.includes('online') || status.includes('match')) {
+        } else if (status === 'texting') {
           dating.onlineOnly.push(person);
         } else {
           dating.backBurner.push(person);
         }
       } else if (entry.category === 'todos') {
         todos.push({
-          task: entry.data.task || entry.data.action || 'Task',
-          due: entry.data.due || entry.data.timeframe || 'TBD',
-          priority: entry.data.priority || 'medium'
+          task: data.task || 'Task',
+          due: data.due || 'TBD',
+          priority: data.priority || 'medium',
+          status: data.status || 'pending'
         });
       }
     });
@@ -600,20 +604,30 @@ const App = () => {
               marginBottom: '12px',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px'
+              gap: '12px',
+              opacity: todo.status === 'done' ? 0.5 : 1
             }}>
               <div style={{
                 width: '20px',
                 height: '20px',
                 border: '2px solid #444',
                 borderRadius: '6px',
-                flexShrink: 0
-              }}></div>
+                flexShrink: 0,
+                background: todo.status === 'done' ? '#88ff00' : 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#000',
+                fontSize: '14px'
+              }}>
+                {todo.status === 'done' && '✓'}
+              </div>
               <div style={{ flex: 1 }}>
                 <div style={{ 
                   color: '#fff',
                   fontSize: '14px',
-                  marginBottom: '4px'
+                  marginBottom: '4px',
+                  textDecoration: todo.status === 'done' ? 'line-through' : 'none'
                 }}>
                   {todo.task}
                 </div>
@@ -622,7 +636,7 @@ const App = () => {
                   fontSize: '12px',
                   fontFamily: 'Space Mono, monospace'
                 }}>
-                  Due: {todo.due}
+                  Due: {todo.due} • {todo.status}
                 </div>
               </div>
             </div>
