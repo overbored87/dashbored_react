@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase configuration - Replace with your actual values
@@ -8,30 +8,6 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5saWpycGZ1emN4ZnRiY3V3enRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MjcwODQsImV4cCI6MjA4NjUwMzA4NH0.SbZFfPwBLPSBK0DkWs00IGFtrnPHtvKXQefg43fL6Dg'  // Your anon/public key
 );
 
-// PERSISTENT STORAGE WRAPPER
-const storage = {
-  async get(key) {
-    try {
-      return await window.storage.get(key, false);
-    } catch {
-      return null;
-    }
-  },
-  async set(key, value) {
-    try {
-      return await window.storage.set(key, JSON.stringify(value), false);
-    } catch {
-      return null;
-    }
-  },
-  async list(prefix) {
-    try {
-      return await window.storage.list(prefix, false);
-    } catch {
-      return { keys: [] };
-    }
-  }
-};
 
 // Utility to generate sample data
 const generateSampleData = () => ({
@@ -101,12 +77,13 @@ const App = () => {
   const [timeRange, setTimeRange] = useState('week'); // 'week', 'month', 'quarter', 'all'
 
   useEffect(() => {
-    loadData();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  loadData();
+  
+  // Auto-refresh every 30 seconds
+  const interval = setInterval(loadData, 30000);
+  return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   const loadData = async () => {
     try {
