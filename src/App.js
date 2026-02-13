@@ -95,7 +95,7 @@ const generateSampleData = () => ({
   ]
 });
 
-const Dashboard = () => {
+const App = () => {
   const [data, setData] = useState(generateSampleData());
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('week'); // 'week', 'month', 'quarter', 'all'
@@ -673,4 +673,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default App;
