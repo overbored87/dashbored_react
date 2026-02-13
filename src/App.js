@@ -8,7 +8,6 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5saWpycGZ1emN4ZnRiY3V3enRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MjcwODQsImV4cCI6MjA4NjUwMzA4NH0.SbZFfPwBLPSBK0DkWs00IGFtrnPHtvKXQefg43fL6Dg'  // Your anon/public key
 );
 
-
 // Utility to generate sample data
 const generateSampleData = () => ({
   finance: [
@@ -77,13 +76,13 @@ const App = () => {
   const [timeRange, setTimeRange] = useState('week'); // 'week', 'month', 'quarter', 'all'
 
   useEffect(() => {
-  loadData();
-  
-  // Auto-refresh every 30 seconds
-  const interval = setInterval(loadData, 30000);
-  return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+    loadData();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadData = async () => {
     try {
