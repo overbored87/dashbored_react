@@ -12,40 +12,40 @@ const supabase = createClient(
 const generateSampleData = () => ({
   finance: [
     // January
-    { date: '1/2', fullDate: '2026-01-02', amount: 134, category: 'groceries' },
-    { date: '1/5', fullDate: '2026-01-05', amount: 89, category: 'dining' },
-    { date: '1/8', fullDate: '2026-01-08', amount: 45, category: 'transport' },
-    { date: '1/10', fullDate: '2026-01-10', amount: 156, category: 'groceries' },
-    { date: '1/12', fullDate: '2026-01-12', amount: 78, category: 'dining' },
-    { date: '1/15', fullDate: '2026-01-15', amount: 234, category: 'groceries' },
-    { date: '1/18', fullDate: '2026-01-18', amount: 92, category: 'entertainment' },
-    { date: '1/20', fullDate: '2026-01-20', amount: 67, category: 'dining' },
-    { date: '1/23', fullDate: '2026-01-23', amount: 145, category: 'groceries' },
-    { date: '1/25', fullDate: '2026-01-25', amount: 54, category: 'transport' },
-    { date: '1/28', fullDate: '2026-01-28', amount: 89, category: 'dining' },
-    { date: '1/30', fullDate: '2026-01-30', amount: 178, category: 'groceries' },
+    { date: '2/1', fullDate: '2026-01-02', amount: 134, category: 'groceries' },
+    { date: '5/1', fullDate: '2026-01-05', amount: 89, category: 'dining' },
+    { date: '8/1', fullDate: '2026-01-08', amount: 45, category: 'transport' },
+    { date: '10/1', fullDate: '2026-01-10', amount: 156, category: 'groceries' },
+    { date: '12/1', fullDate: '2026-01-12', amount: 78, category: 'dining' },
+    { date: '15/1', fullDate: '2026-01-15', amount: 234, category: 'groceries' },
+    { date: '18/1', fullDate: '2026-01-18', amount: 92, category: 'entertainment' },
+    { date: '20/1', fullDate: '2026-01-20', amount: 67, category: 'dining' },
+    { date: '23/1', fullDate: '2026-01-23', amount: 145, category: 'groceries' },
+    { date: '25/1', fullDate: '2026-01-25', amount: 54, category: 'transport' },
+    { date: '28/1', fullDate: '2026-01-28', amount: 89, category: 'dining' },
+    { date: '30/1', fullDate: '2026-01-30', amount: 178, category: 'groceries' },
     
     // February (current)
     { date: '2/2', fullDate: '2026-02-02', amount: 198, category: 'groceries' },
-    { date: '2/4', fullDate: '2026-02-04', amount: 76, category: 'dining' },
-    { date: '2/7', fullDate: '2026-02-07', amount: 145, category: 'groceries' },
-    { date: '2/8', fullDate: '2026-02-08', amount: 52, category: 'dining' },
-    { date: '2/9', fullDate: '2026-02-09', amount: 89, category: 'transport' },
-    { date: '2/10', fullDate: '2026-02-10', amount: 220, category: 'groceries' },
-    { date: '2/11', fullDate: '2026-02-11', amount: 75, category: 'dining' },
-    { date: '2/12', fullDate: '2026-02-12', amount: 45, category: 'entertainment' },
-    { date: '2/13', fullDate: '2026-02-13', amount: 67, category: 'dining' },
+    { date: '4/2', fullDate: '2026-02-04', amount: 76, category: 'dining' },
+    { date: '7/2', fullDate: '2026-02-07', amount: 145, category: 'groceries' },
+    { date: '8/2', fullDate: '2026-02-08', amount: 52, category: 'dining' },
+    { date: '9/2', fullDate: '2026-02-09', amount: 89, category: 'transport' },
+    { date: '10/2', fullDate: '2026-02-10', amount: 220, category: 'groceries' },
+    { date: '11/2', fullDate: '2026-02-11', amount: 75, category: 'dining' },
+    { date: '12/2', fullDate: '2026-02-12', amount: 45, category: 'entertainment' },
+    { date: '13/2', fullDate: '2026-02-13', amount: 67, category: 'dining' },
     
     // December (for 3-month view)
-    { date: '12/5', fullDate: '2025-12-05', amount: 156, category: 'groceries' },
-    { date: '12/8', fullDate: '2025-12-08', amount: 92, category: 'dining' },
+    { date: '5/12', fullDate: '2025-12-05', amount: 156, category: 'groceries' },
+    { date: '8/12', fullDate: '2025-12-08', amount: 92, category: 'dining' },
     { date: '12/12', fullDate: '2025-12-12', amount: 234, category: 'groceries' },
-    { date: '12/15', fullDate: '2025-12-15', amount: 67, category: 'transport' },
-    { date: '12/18', fullDate: '2025-12-18', amount: 145, category: 'entertainment' },
-    { date: '12/20', fullDate: '2025-12-20', amount: 89, category: 'dining' },
-    { date: '12/23', fullDate: '2025-12-23', amount: 178, category: 'groceries' },
-    { date: '12/27', fullDate: '2025-12-27', amount: 234, category: 'dining' },
-    { date: '12/30', fullDate: '2025-12-30', amount: 123, category: 'groceries' }
+    { date: '15/12', fullDate: '2025-12-15', amount: 67, category: 'transport' },
+    { date: '18/12', fullDate: '2025-12-18', amount: 145, category: 'entertainment' },
+    { date: '20/12', fullDate: '2025-12-20', amount: 89, category: 'dining' },
+    { date: '23/12', fullDate: '2025-12-23', amount: 178, category: 'groceries' },
+    { date: '27/12', fullDate: '2025-12-27', amount: 234, category: 'dining' },
+    { date: '30/12', fullDate: '2025-12-30', amount: 123, category: 'groceries' }
   ],
   dating: {
     activePursuit: [
@@ -124,7 +124,7 @@ const App = () => {
       if (entry.category === 'finance') {
         const date = new Date(data.date || entry.created_at);
         finance.push({
-          date: `${date.getMonth() + 1}/${date.getDate()}`,
+          date: `${date.getDate()}/${date.getMonth() + 1}`,
           fullDate: data.date || entry.created_at,
           amount: Math.abs(data.amount || 0), // Use absolute value for display
           category: data.subcategory || data.description || 'other'
@@ -217,6 +217,18 @@ const App = () => {
   };
 
   const filteredFinance = getFilteredFinanceData();
+
+  // Consolidate spending per day for the bar chart
+  const consolidatedFinance = Object.values(
+    filteredFinance.reduce((acc, item) => {
+      const key = item.fullDate;
+      if (!acc[key]) {
+        acc[key] = { date: item.date, fullDate: item.fullDate, amount: 0 };
+      }
+      acc[key].amount += item.amount;
+      return acc;
+    }, {})
+  ).sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
 
   // Calculate metrics
   const totalSpending = filteredFinance.reduce((sum, item) => sum + item.amount, 0);
@@ -323,7 +335,7 @@ const App = () => {
       `}</style>
 
       {/* Header */}
-      <div style={{ maxWidth: '1400px', margin: '0 auto 60px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto 60px' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
           <span className="live-indicator"></span>
           <span style={{ 
@@ -358,11 +370,11 @@ const App = () => {
 
       {/* Widgets Grid */}
       <div style={{ 
-        maxWidth: '1400px', 
+        maxWidth: '1100px', 
         margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-        gap: '24px'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '20px'
       }}>
         
         {/* Finance Widget */}
@@ -370,7 +382,7 @@ const App = () => {
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
           border: '1px solid #333',
           borderRadius: '16px',
-          padding: '32px',
+          padding: '24px',
           position: 'relative',
           overflow: 'hidden'
         }}>
@@ -393,7 +405,7 @@ const App = () => {
               letterSpacing: '2px',
               marginBottom: '12px'
             }}>
-              💰 Finance
+              💰 Spending
             </div>
             <div className="stat-number">${totalSpending}</div>
             <div style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
@@ -435,7 +447,7 @@ const App = () => {
           </div>
 
           <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={filteredFinance.slice(-20)}>
+            <BarChart data={consolidatedFinance.slice(-20)}>
               <Bar dataKey="amount" fill="#00ff88" radius={[4, 4, 0, 0]} />
               <XAxis dataKey="date" stroke="#444" style={{ fontSize: '11px' }} />
               <YAxis stroke="#444" style={{ fontSize: '11px' }} />
@@ -473,7 +485,7 @@ const App = () => {
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
           border: '1px solid #333',
           borderRadius: '16px',
-          padding: '32px',
+          padding: '24px',
           gridColumn: 'span 2'
         }}>
           <div style={{ marginBottom: '24px' }}>
@@ -631,7 +643,7 @@ const App = () => {
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
           border: '1px solid #333',
           borderRadius: '16px',
-          padding: '32px'
+          padding: '24px'
         }}>
           <div style={{ 
             color: '#88ff00',
@@ -692,7 +704,7 @@ const App = () => {
 
       {/* Footer */}
       <div style={{
-        maxWidth: '1400px',
+        maxWidth: '1100px',
         margin: '60px auto 0',
         textAlign: 'center',
         color: '#444',
