@@ -457,30 +457,28 @@ const App = () => {
             pointerEvents: 'none'
           }}></div>
           
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-            <div>
-              <div style={{ 
-                color: '#00ff88',
-                fontSize: '12px',
-                fontFamily: 'Space Mono, monospace',
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
-                marginBottom: '12px'
-              }}>
-                🏦 Net Worth
-              </div>
-              <div className="stat-number" style={{ fontSize: '56px' }}>
-                ${(() => {
-                  const nw = data.netWorth;
-                  if (!nw || nw.length === 0) return '0';
-                  const latest = nw[nw.length - 1];
-                  return (latest.total || 0).toLocaleString();
-                })()}
-              </div>
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ 
+              color: '#00ff88',
+              fontSize: '12px',
+              fontFamily: 'Space Mono, monospace',
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              marginBottom: '12px'
+            }}>
+              🏦 Net Worth
             </div>
-            <div style={{ textAlign: 'right', marginTop: '28px' }}>
-              <div style={{ marginBottom: '8px' }}>
-                <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '12px' }}>Savings</span>
+            <div className="stat-number" style={{ fontSize: '56px' }}>
+              ${(() => {
+                const nw = data.netWorth;
+                if (!nw || nw.length === 0) return '0';
+                const latest = nw[nw.length - 1];
+                return (latest.total || 0).toLocaleString();
+              })()}
+            </div>
+            <div style={{ display: 'flex', gap: '24px', marginTop: '12px' }}>
+              <div>
+                <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '8px' }}>Savings</span>
                 <span style={{ color: '#00ff88', fontSize: '16px', fontFamily: 'Space Mono, monospace', fontWeight: '700' }}>
                   ${(() => {
                     const nw = data.netWorth;
@@ -490,7 +488,7 @@ const App = () => {
                 </span>
               </div>
               <div>
-                <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '12px' }}>Trading</span>
+                <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '8px' }}>Trading</span>
                 <span style={{ color: '#00ffff', fontSize: '16px', fontFamily: 'Space Mono, monospace', fontWeight: '700' }}>
                   ${(() => {
                     const nw = data.netWorth;
