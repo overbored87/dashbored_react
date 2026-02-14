@@ -64,9 +64,9 @@ const generateSampleData = () => ({
     ]
   },
   todos: [
-    { task: 'Q1 performance review', due: '2/18', priority: 'high' },
-    { task: 'Dentist appointment', due: '2/21', priority: 'medium' },
-    { task: 'File taxes', due: '3/15', priority: 'high' }
+    { id: 'sample-1', task: 'Q1 performance review', due: '2/18', priority: 'high', status: 'pending' },
+    { id: 'sample-2', task: 'Dentist appointment', due: '2/21', priority: 'medium', status: 'pending' },
+    { id: 'sample-3', task: 'File taxes', due: '3/15', priority: 'high', status: 'pending' }
   ]
 });
 
@@ -145,16 +145,44 @@ const App = () => {
           dating.backBurner.push(person);
         }
       } else if (entry.category === 'todos') {
-        todos.push({
-          task: data.task || 'Task',
-          due: data.due || 'TBD',
-          priority: data.priority || 'medium',
-          status: data.status || 'pending'
-        });
+        // Only show pending/in_progress todos
+        if (data.status !== 'done') {
+          todos.push({
+            id: entry.id,               // Supabase row ID for updates
+            entryData: data,             // Keep full data for PATCH
+            task: data.task || 'Task',
+            due: data.due || 'TBD',
+            priority: data.priority || 'medium',
+            status: data.status || 'pending'
+          });
+        }
       }
     });
 
     return { finance, dating, todos };
+  };
+
+  // Mark a todo as done — optimistic UI + Supabase update
+  const markTodoDone = async (todoId, entryData) => {
+    // Optimistic: remove from UI immediately
+    setData(prev => ({
+      ...prev,
+      todos: prev.todos.filter(t => t.id !== todoId)
+    }));
+
+    // If it's a sample todo (no real Supabase ID), just remove from UI
+    if (!todoId || String(todoId).startsWith('sample-')) return;
+
+    const { error } = await supabase
+      .from('dashboard_entries')
+      .update({ data: { ...entryData, status: 'done' } })
+      .eq('id', todoId);
+
+    if (error) {
+      console.error('Failed to mark todo done:', error);
+      // Re-fetch to restore if failed
+      loadData();
+    }
   };
 
   // Filter finance data by time range
@@ -270,6 +298,27 @@ const App = () => {
           display: inline-block;
           margin-right: 8px;
           box-shadow: 0 0 12px #00ff88;
+        }
+
+        .todo-checkbox {
+          width: 20px;
+          height: 20px;
+          border: 2px solid #444;
+          border-radius: 6px;
+          flex-shrink: 0;
+          background: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #000;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .todo-checkbox:hover {
+          border-color: #88ff00;
+          background: #88ff0022;
         }
       `}</style>
 
@@ -592,11 +641,17 @@ const App = () => {
             letterSpacing: '2px',
             marginBottom: '20px'
           }}>
-            ✅ To-Do
+            ✅ To-Do ({data.todos.length})
           </div>
 
+          {data.todos.length === 0 && (
+            <div style={{ color: '#666', fontSize: '13px', fontStyle: 'italic' }}>
+              All done! 🎉
+            </div>
+          )}
+
           {data.todos.map((todo, i) => (
-            <div key={i} style={{
+            <div key={todo.id || i} style={{
               background: '#1a1a1a',
               border: todo.priority === 'high' ? '1px solid #88ff0044' : '1px solid #2a2a2a',
               borderRadius: '12px',
@@ -604,30 +659,20 @@ const App = () => {
               marginBottom: '12px',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
-              opacity: todo.status === 'done' ? 0.5 : 1
+              gap: '12px'
             }}>
-              <div style={{
-                width: '20px',
-                height: '20px',
-                border: '2px solid #444',
-                borderRadius: '6px',
-                flexShrink: 0,
-                background: todo.status === 'done' ? '#88ff00' : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#000',
-                fontSize: '14px'
-              }}>
-                {todo.status === 'done' && '✓'}
-              </div>
+              <div
+                className="todo-checkbox"
+                onClick={() => markTodoDone(todo.id, todo.entryData)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && markTodoDone(todo.id, todo.entryData)}
+              />
               <div style={{ flex: 1 }}>
                 <div style={{ 
                   color: '#fff',
                   fontSize: '14px',
-                  marginBottom: '4px',
-                  textDecoration: todo.status === 'done' ? 'line-through' : 'none'
+                  marginBottom: '4px'
                 }}>
                   {todo.task}
                 </div>
@@ -636,7 +681,7 @@ const App = () => {
                   fontSize: '12px',
                   fontFamily: 'Space Mono, monospace'
                 }}>
-                  Due: {todo.due} • {todo.status}
+                  Due: {todo.due} • {todo.priority}
                 </div>
               </div>
             </div>
