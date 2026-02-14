@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase configuration - Replace with your actual values
@@ -67,6 +67,14 @@ const generateSampleData = () => ({
     { id: 'sample-1', task: 'Q1 performance review', due: '2/18', priority: 'high', status: 'pending' },
     { id: 'sample-2', task: 'Dentist appointment', due: '2/21', priority: 'medium', status: 'pending' },
     { id: 'sample-3', task: 'File taxes', due: '3/15', priority: 'high', status: 'pending' }
+  ],
+  netWorth: [
+    { date: '2025-09-15', savings: 22000, trading: 8500 },
+    { date: '2025-10-12', savings: 23500, trading: 9200 },
+    { date: '2025-11-18', savings: 24000, trading: 8800 },
+    { date: '2025-12-20', savings: 25500, trading: 10100 },
+    { date: '2026-01-15', savings: 26000, trading: 11500 },
+    { date: '2026-02-10', savings: 27000, trading: 12000 }
   ]
 });
 
@@ -116,6 +124,7 @@ const App = () => {
     const finance = [];
     const dating = { activePursuit: [], onlineOnly: [], backBurner: [] };
     const todos = [];
+    const netWorthRaw = [];
 
     entries.forEach(entry => {
       // Parse data if it's a string (bot saves as JSON string)
@@ -128,6 +137,13 @@ const App = () => {
           fullDate: data.date || entry.created_at,
           amount: Math.abs(data.amount || 0), // Use absolute value for display
           category: data.subcategory || data.description || 'other'
+        });
+      } else if (entry.category === 'net_worth') {
+        netWorthRaw.push({
+          date: data.date || entry.created_at.slice(0, 10),
+          savings: data.savings,
+          trading: data.trading,
+          created_at: entry.created_at
         });
       } else if (entry.category === 'dating') {
         const person = {
@@ -159,7 +175,51 @@ const App = () => {
       }
     });
 
-    return { finance, dating, todos };
+    // Build net worth timeline: for each month, take the latest snapshot
+    // and carry forward the last known value for each account
+    const netWorth = buildNetWorthTimeline(netWorthRaw);
+
+    return { finance, dating, todos, netWorth };
+  };
+
+  // Build a 6-month net worth timeline from snapshots
+  const buildNetWorthTimeline = (rawEntries) => {
+    if (rawEntries.length === 0) return [];
+
+    // Sort by date ascending
+    const sorted = [...rawEntries].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Track latest known values for each account
+    let latestSavings = 0;
+    let latestTrading = 0;
+
+    // Group by month, keeping the latest entry per month
+    const monthMap = {};
+    sorted.forEach(entry => {
+      if (entry.savings != null) latestSavings = entry.savings;
+      if (entry.trading != null) latestTrading = entry.trading;
+
+      const d = new Date(entry.date);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+      monthMap[monthKey] = {
+        savings: latestSavings,
+        trading: latestTrading,
+        total: latestSavings + latestTrading
+      };
+    });
+
+    // Get last 6 months
+    const months = Object.keys(monthMap).sort().slice(-6);
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    return months.map(key => {
+      const [, m] = key.split('-');
+      return {
+        month: monthNames[parseInt(m) - 1],
+        ...monthMap[key]
+      };
+    });
   };
 
   // Mark a todo as done — optimistic UI + Supabase update
@@ -377,6 +437,84 @@ const App = () => {
         gap: '20px'
       }}>
         
+        {/* Net Worth Widget */}
+        <div className="widget" style={{
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
+          border: '1px solid #333',
+          borderRadius: '16px',
+          padding: '24px',
+          position: 'relative',
+          overflow: 'hidden',
+          gridColumn: 'span 2'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '300px',
+            height: '300px',
+            background: 'radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%)',
+            pointerEvents: 'none'
+          }}></div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+            <div>
+              <div style={{ 
+                color: '#00ff88',
+                fontSize: '12px',
+                fontFamily: 'Space Mono, monospace',
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                marginBottom: '12px'
+              }}>
+                🏦 Net Worth
+              </div>
+              <div className="stat-number" style={{ fontSize: '56px' }}>
+                ${(() => {
+                  const nw = data.netWorth;
+                  if (!nw || nw.length === 0) return '0';
+                  const latest = nw[nw.length - 1];
+                  return (latest.total || 0).toLocaleString();
+                })()}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right', marginTop: '28px' }}>
+              <div style={{ marginBottom: '8px' }}>
+                <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '12px' }}>Savings</span>
+                <span style={{ color: '#00ff88', fontSize: '16px', fontFamily: 'Space Mono, monospace', fontWeight: '700' }}>
+                  ${(() => {
+                    const nw = data.netWorth;
+                    if (!nw || nw.length === 0) return '0';
+                    return (nw[nw.length - 1].savings || 0).toLocaleString();
+                  })()}
+                </span>
+              </div>
+              <div>
+                <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '12px' }}>Trading</span>
+                <span style={{ color: '#00ffff', fontSize: '16px', fontFamily: 'Space Mono, monospace', fontWeight: '700' }}>
+                  ${(() => {
+                    const nw = data.netWorth;
+                    if (!nw || nw.length === 0) return '0';
+                    return (nw[nw.length - 1].trading || 0).toLocaleString();
+                  })()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <ResponsiveContainer width="100%" height={140}>
+            <LineChart data={data.netWorth || []}>
+              <XAxis dataKey="month" stroke="#444" style={{ fontSize: '11px' }} />
+              <YAxis stroke="#444" style={{ fontSize: '11px' }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+              <Tooltip 
+                contentStyle={{ background: '#0f0f0f', border: '1px solid #333', borderRadius: '8px', fontSize: '12px' }}
+                formatter={(value) => [`$${value.toLocaleString()}`, '']}
+              />
+              <Line type="monotone" dataKey="total" stroke="#00ff88" strokeWidth={2} dot={{ fill: '#00ff88', r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
         {/* Finance Widget */}
         <div className="widget" style={{
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
