@@ -68,14 +68,14 @@ const generateSampleData = () => ({
     { id: 'sample-2', task: 'Dentist appointment', due: '2/21', priority: 'medium', status: 'pending' },
     { id: 'sample-3', task: 'File taxes', due: '3/15', priority: 'high', status: 'pending' }
   ],
-  netWorth: [
-    { date: '2025-09-15', savings: 22000, trading: 8500 },
-    { date: '2025-10-12', savings: 23500, trading: 9200 },
-    { date: '2025-11-18', savings: 24000, trading: 8800 },
-    { date: '2025-12-20', savings: 25500, trading: 10100 },
-    { date: '2026-01-15', savings: 26000, trading: 11500 },
-    { date: '2026-02-10', savings: 27000, trading: 12000 }
-  ]
+  netWorth: Object.assign([
+    { month: 'Sep', savings: 22000, trading: 8500, total: 30500 },
+    { month: 'Oct', savings: 23500, trading: 9200, total: 32700 },
+    { month: 'Nov', savings: 24000, trading: 8800, total: 32800 },
+    { month: 'Dec', savings: 25500, trading: 10100, total: 35600 },
+    { month: 'Jan', savings: 26000, trading: 11500, total: 37500 },
+    { month: 'Feb', savings: 27000, trading: 12000, total: 39000 }
+  ], { lastUpdated: '10/02/26' })
 });
 
 const App = () => {
@@ -195,9 +195,11 @@ const App = () => {
 
     // Group by month, keeping the latest entry per month
     const monthMap = {};
+    let lastDate = '';
     sorted.forEach(entry => {
       if (entry.savings != null) latestSavings = entry.savings;
       if (entry.trading != null) latestTrading = entry.trading;
+      lastDate = entry.date;
 
       const d = new Date(entry.date);
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -213,13 +215,21 @@ const App = () => {
     const months = Object.keys(monthMap).sort().slice(-6);
     const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    return months.map(key => {
+    // Format lastDate as DD/MM/YY
+    const ld = new Date(lastDate);
+    const lastUpdated = lastDate ? `${String(ld.getDate()).padStart(2,'0')}/${String(ld.getMonth()+1).padStart(2,'0')}/${String(ld.getFullYear()).slice(-2)}` : '';
+
+    const timeline = months.map(key => {
       const [, m] = key.split('-');
       return {
         month: monthNames[parseInt(m) - 1],
         ...monthMap[key]
       };
     });
+
+    // Attach lastUpdated to the array for display
+    timeline.lastUpdated = lastUpdated;
+    return timeline;
   };
 
   // Mark a todo as done — optimistic UI + Supabase update
@@ -410,11 +420,12 @@ const App = () => {
         </div>
         <h1 style={{ 
           fontFamily: 'Syne, sans-serif',
-          fontSize: '24px',
+          fontSize: '32px',
           fontWeight: '800',
           color: '#ffffff',
           margin: '0 0 8px 0',
-          letterSpacing: '-1px'
+          letterSpacing: '-1px',
+          lineHeight: '1.2'
         }}>
           Dashbored v1.0
         </h1>
@@ -433,7 +444,7 @@ const App = () => {
         maxWidth: '1100px', 
         margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gridTemplateColumns: '1fr 1fr',
         gap: '20px'
       }}>
         
@@ -464,9 +475,15 @@ const App = () => {
               fontFamily: 'Space Mono, monospace',
               textTransform: 'uppercase',
               letterSpacing: '2px',
-              marginBottom: '12px'
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
             }}>
               🏦 Net Worth
+              <span style={{ color: '#555', fontSize: '11px', textTransform: 'none', letterSpacing: '0' }}>
+                {data.netWorth?.lastUpdated ? `updated ${data.netWorth.lastUpdated}` : ''}
+              </span>
             </div>
             <div className="stat-number" style={{ fontSize: '56px' }}>
               ${(() => {
@@ -520,7 +537,8 @@ const App = () => {
           borderRadius: '16px',
           padding: '24px',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          gridColumn: 'span 2'
         }}>
           <div style={{
             position: 'absolute',
@@ -779,7 +797,8 @@ const App = () => {
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
           border: '1px solid #333',
           borderRadius: '16px',
-          padding: '24px'
+          padding: '24px',
+          gridColumn: 'span 2'
         }}>
           <div style={{ 
             color: '#88ff00',
