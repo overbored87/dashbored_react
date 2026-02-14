@@ -169,7 +169,8 @@ const App = () => {
             task: data.task || 'Task',
             due: data.due || 'TBD',
             priority: data.priority || 'medium',
-            status: data.status || 'pending'
+            status: data.status || 'pending',
+            reminderTime: data.reminder_time || null
           });
         }
       }
@@ -849,6 +850,15 @@ const App = () => {
                   fontFamily: 'Space Mono, monospace'
                 }}>
                   Due: {todo.due} • {todo.priority}
+                  {todo.reminderTime && (() => {
+                    try {
+                      const rt = new Date(todo.reminderTime);
+                      const dd = String(rt.getDate()).padStart(2, '0');
+                      const mm = String(rt.getMonth() + 1).padStart(2, '0');
+                      const time = rt.toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', hour12: true });
+                      return <span style={{ color: '#ffaa00' }}> • 🔔 {dd}/{mm} {time}</span>;
+                    } catch { return null; }
+                  })()}
                 </div>
               </div>
             </div>
