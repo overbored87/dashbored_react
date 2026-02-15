@@ -75,7 +75,8 @@ const generateSampleData = () => ({
     { month: 'Dec', savings: 25500, trading: 10100, total: 35600 },
     { month: 'Jan', savings: 26000, trading: 11500, total: 37500 },
     { month: 'Feb', savings: 27000, trading: 12000, total: 39000 }
-  ], { lastUpdated: '10/02/26' })
+  ], { lastUpdated: '10/02/26' }),
+  habits: { apps: 5, vlogs: 4, pm: 3 }
 });
 
 const App = () => {
@@ -125,6 +126,10 @@ const App = () => {
     const dating = { activePursuit: [], onlineOnly: [], backBurner: [] };
     const todos = [];
     const netWorthRaw = [];
+    const habits = { apps: 0, vlogs: 0, pm: 0 };
+
+    // Current year for filtering habits
+    const currentYear = new Date().getFullYear();
 
     entries.forEach(entry => {
       // Parse data if it's a string (bot saves as JSON string)
@@ -173,6 +178,15 @@ const App = () => {
             reminderTime: data.reminder_time || null
           });
         }
+      } else if (entry.category === 'habits') {
+        // Only count habits from current year
+        const entryDate = new Date(data.date || entry.created_at);
+        if (entryDate.getFullYear() === currentYear) {
+          const habit = data.habit;
+          if (habit in habits) {
+            habits[habit] += 1;
+          }
+        }
       }
     });
 
@@ -180,7 +194,7 @@ const App = () => {
     // and carry forward the last known value for each account
     const netWorth = buildNetWorthTimeline(netWorthRaw);
 
-    return { finance, dating, todos, netWorth };
+    return { finance, dating, todos, netWorth, habits };
   };
 
   // Build a 6-month net worth timeline from snapshots
@@ -635,7 +649,79 @@ const App = () => {
           </div>
         </div>
 
-        {/* Dating Widget - Now larger with 3 lists */}
+        {/* Todos Widget */}
+        <div className="widget" style={{
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
+          border: '1px solid #333',
+          borderRadius: '16px',
+          padding: '24px',
+          gridColumn: 'span 2'
+        }}>
+          <div style={{ 
+            color: '#88ff00',
+            fontSize: '12px',
+            fontFamily: 'Space Mono, monospace',
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            marginBottom: '20px'
+          }}>
+            ✅ To-Do ({data.todos.length})
+          </div>
+
+          {data.todos.length === 0 && (
+            <div style={{ color: '#666', fontSize: '13px', fontStyle: 'italic' }}>
+              All done! 🎉
+            </div>
+          )}
+
+          {data.todos.map((todo, i) => (
+            <div key={todo.id || i} style={{
+              background: '#1a1a1a',
+              border: todo.priority === 'high' ? '1px solid #88ff0044' : '1px solid #2a2a2a',
+              borderRadius: '12px',
+              padding: '16px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <div
+                className="todo-checkbox"
+                onClick={() => markTodoDone(todo.id, todo.entryData)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && markTodoDone(todo.id, todo.entryData)}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ 
+                  color: '#fff',
+                  fontSize: '14px',
+                  marginBottom: '4px'
+                }}>
+                  {todo.task}
+                </div>
+                <div style={{ 
+                  color: '#666',
+                  fontSize: '12px',
+                  fontFamily: 'Space Mono, monospace'
+                }}>
+                  Due: {todo.due} • {todo.priority}
+                  {todo.reminderTime && (() => {
+                    try {
+                      const rt = new Date(todo.reminderTime);
+                      const dd = String(rt.getDate()).padStart(2, '0');
+                      const mm = String(rt.getMonth() + 1).padStart(2, '0');
+                      const time = rt.toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', hour12: true });
+                      return <span style={{ color: '#ffaa00' }}> • 🔔 {dd}/{mm} {time}</span>;
+                    } catch { return null; }
+                  })()}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Dating Widget */}
         <div className="widget" style={{
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
           border: '1px solid #333',
@@ -793,7 +879,7 @@ const App = () => {
           </div>
         </div>
 
-        {/* Todos Widget */}
+        {/* Habits Widget */}
         <div className="widget" style={{
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
           border: '1px solid #333',
@@ -802,67 +888,90 @@ const App = () => {
           gridColumn: 'span 2'
         }}>
           <div style={{ 
-            color: '#88ff00',
+            color: '#aa88ff',
             fontSize: '12px',
             fontFamily: 'Space Mono, monospace',
             textTransform: 'uppercase',
             letterSpacing: '2px',
-            marginBottom: '20px'
+            marginBottom: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
           }}>
-            ✅ To-Do ({data.todos.length})
+            🔁 Habits
+            <span style={{ color: '#555', fontSize: '11px', textTransform: 'none', letterSpacing: '0' }}>
+              Week {Math.ceil((Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 1)) / 86400000) + 1) / 7)} of {new Date().getFullYear()}
+            </span>
           </div>
 
-          {data.todos.length === 0 && (
-            <div style={{ color: '#666', fontSize: '13px', fontStyle: 'italic' }}>
-              All done! 🎉
-            </div>
-          )}
-
-          {data.todos.map((todo, i) => (
-            <div key={todo.id || i} style={{
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '20px' }}>
+            {/* Apps */}
+            <div style={{
               background: '#1a1a1a',
-              border: todo.priority === 'high' ? '1px solid #88ff0044' : '1px solid #2a2a2a',
+              border: '1px solid #aa88ff33',
               borderRadius: '12px',
-              padding: '16px',
-              marginBottom: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
+              padding: '20px',
+              textAlign: 'center'
             }}>
-              <div
-                className="todo-checkbox"
-                onClick={() => markTodoDone(todo.id, todo.entryData)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && markTodoDone(todo.id, todo.entryData)}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ 
-                  color: '#fff',
-                  fontSize: '14px',
-                  marginBottom: '4px'
-                }}>
-                  {todo.task}
-                </div>
-                <div style={{ 
-                  color: '#666',
-                  fontSize: '12px',
-                  fontFamily: 'Space Mono, monospace'
-                }}>
-                  Due: {todo.due} • {todo.priority}
-                  {todo.reminderTime && (() => {
-                    try {
-                      const rt = new Date(todo.reminderTime);
-                      const dd = String(rt.getDate()).padStart(2, '0');
-                      const mm = String(rt.getMonth() + 1).padStart(2, '0');
-                      const time = rt.toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', hour12: true });
-                      return <span style={{ color: '#ffaa00' }}> • 🔔 {dd}/{mm} {time}</span>;
-                    } catch { return null; }
-                  })()}
-                </div>
+              <div style={{
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '40px',
+                fontWeight: '700',
+                color: '#aa88ff',
+                lineHeight: '1'
+              }}>
+                {data.habits?.apps || 0}
+              </div>
+              <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
+                apps shipped
               </div>
             </div>
-          ))}
+
+            {/* Vlogs */}
+            <div style={{
+              background: '#1a1a1a',
+              border: '1px solid #aa88ff33',
+              borderRadius: '12px',
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '40px',
+                fontWeight: '700',
+                color: '#aa88ff',
+                lineHeight: '1'
+              }}>
+                {data.habits?.vlogs || 0}
+              </div>
+              <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
+                vlogs shot
+              </div>
+            </div>
+
+            {/* PM */}
+            <div style={{
+              background: '#1a1a1a',
+              border: '1px solid #aa88ff33',
+              borderRadius: '12px',
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '40px',
+                fontWeight: '700',
+                color: (data.habits?.pm || 0) > Math.ceil((Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 1)) / 86400000) + 1) / 7)
+                  ? '#ff4444' : '#aa88ff',
+                lineHeight: '1'
+              }}>
+                {data.habits?.pm || 0}
+              </div>
+              <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
+                PM count
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
