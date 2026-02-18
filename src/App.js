@@ -76,13 +76,40 @@ const generateSampleData = () => ({
     { month: 'Jan', savings: 26000, trading: 11500, total: 37500 },
     { month: 'Feb', savings: 27000, trading: 12000, total: 39000 }
   ], { lastUpdated: '10/02/26' }),
-  habits: { apps: 5, vlogs: 4, pm: 3 }
+  habits: { apps: 5, vlogs: 4, pm: 3 },
+  sleep: [
+    { date: '12/2', fullDate: '2026-02-12', score: 6.5, notes: 'alcohol, slept at 2am' },
+    { date: '13/2', fullDate: '2026-02-13', score: 5.0, notes: 'woke up 4am, work stress' },
+    { date: '14/2', fullDate: '2026-02-14', score: 7.5, notes: 'melatonin' },
+    { date: '15/2', fullDate: '2026-02-15', score: 8.0, notes: '' },
+    { date: '16/2', fullDate: '2026-02-16', score: 6.0, notes: 'late dinner, restless' },
+    { date: '17/2', fullDate: '2026-02-17', score: 7.0, notes: 'slept at 12am' },
+    { date: '18/2', fullDate: '2026-02-18', score: 8.5, notes: 'melatonin, no screens' },
+    { date: '19/1', fullDate: '2026-01-19', score: 7.0, notes: '' },
+    { date: '21/1', fullDate: '2026-01-21', score: 6.0, notes: 'alcohol' },
+    { date: '23/1', fullDate: '2026-01-23', score: 7.5, notes: '' },
+    { date: '25/1', fullDate: '2026-01-25', score: 5.5, notes: 'insomnia' },
+    { date: '27/1', fullDate: '2026-01-27', score: 8.0, notes: 'melatonin' },
+    { date: '29/1', fullDate: '2026-01-29', score: 7.0, notes: '' },
+    { date: '31/1', fullDate: '2026-01-31', score: 6.5, notes: 'late night coding' },
+    { date: '2/2', fullDate: '2026-02-02', score: 7.5, notes: '' },
+    { date: '4/2', fullDate: '2026-02-04', score: 6.0, notes: 'stress' },
+    { date: '6/2', fullDate: '2026-02-06', score: 8.0, notes: 'melatonin' },
+    { date: '8/2', fullDate: '2026-02-08', score: 7.0, notes: '' },
+    { date: '10/2', fullDate: '2026-02-10', score: 5.5, notes: 'alcohol, slept at 3am' },
+    { date: '20/11', fullDate: '2025-11-20', score: 7.0, notes: '' },
+    { date: '30/11', fullDate: '2025-11-30', score: 7.5, notes: '' },
+    { date: '10/12', fullDate: '2025-12-10', score: 6.0, notes: '' },
+    { date: '20/12', fullDate: '2025-12-20', score: 7.0, notes: '' },
+    { date: '25/12', fullDate: '2025-12-25', score: 8.5, notes: '' }
+  ]
 });
 
 const App = () => {
   const [data, setData] = useState(generateSampleData());
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('week'); // 'week', 'month', 'quarter', 'all'
+  const [sleepRange, setSleepRange] = useState('week');
 
   useEffect(() => {
     loadData();
@@ -127,6 +154,7 @@ const App = () => {
     const todos = [];
     const netWorthRaw = [];
     const habits = { apps: 0, vlogs: 0, pm: 0 };
+    const sleep = [];
 
     // Current year for filtering habits
     const currentYear = new Date().getFullYear();
@@ -187,6 +215,14 @@ const App = () => {
             habits[habit] += 1;
           }
         }
+      } else if (entry.category === 'sleep') {
+        const date = new Date(data.date || entry.created_at);
+        sleep.push({
+          date: `${date.getDate()}/${date.getMonth() + 1}`,
+          fullDate: data.date || entry.created_at,
+          score: data.score || 0,
+          notes: data.notes || ''
+        });
       }
     });
 
@@ -194,7 +230,7 @@ const App = () => {
     // and carry forward the last known value for each account
     const netWorth = buildNetWorthTimeline(netWorthRaw);
 
-    return { finance, dating, todos, netWorth, habits };
+    return { finance, dating, todos, netWorth, habits, sleep: sleep.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate)) };
   };
 
   // Build a 6-month net worth timeline from snapshots
@@ -320,6 +356,22 @@ const App = () => {
   const totalDating = (data.dating?.activePursuit?.length || 0) + 
                       (data.dating?.onlineOnly?.length || 0) + 
                       (data.dating?.backBurner?.length || 0);
+
+  // Filter sleep data by range
+  const getFilteredSleepData = () => {
+    const allSleep = data.sleep || [];
+    if (allSleep.length === 0) return [];
+    const now = new Date();
+    let cutoff;
+    switch (sleepRange) {
+      case 'week': cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 7); break;
+      case 'month': cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 1); break;
+      case 'quarter': cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3); break;
+      default: cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 7);
+    }
+    return allSleep.filter(item => new Date(item.fullDate) >= cutoff);
+  };
+  const filteredSleep = getFilteredSleepData();
 
   if (loading) {
     return (
@@ -971,6 +1023,114 @@ const App = () => {
                 PM count
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Sleep Widget */}
+        <div className="widget" style={{
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
+          border: '1px solid #333',
+          borderRadius: '16px',
+          padding: '24px',
+          position: 'relative',
+          overflow: 'hidden',
+          gridColumn: 'span 2'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '300px',
+            height: '300px',
+            background: 'radial-gradient(circle, rgba(0,170,255,0.06) 0%, transparent 70%)',
+            pointerEvents: 'none'
+          }}></div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ 
+              color: '#00aaff',
+              fontSize: '12px',
+              fontFamily: 'Space Mono, monospace',
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              marginBottom: '12px'
+            }}>
+              😴 Sleep Tracker
+            </div>
+            <div style={{
+              fontFamily: 'Space Mono, monospace',
+              fontSize: '48px',
+              fontWeight: '700',
+              lineHeight: '1',
+              background: 'linear-gradient(135deg, #00aaff, #8855ff)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              {filteredSleep.length > 0 ? filteredSleep[filteredSleep.length - 1].score : '—'}
+              <span style={{ fontSize: '24px' }}>/10</span>
+            </div>
+            <div style={{ color: '#666', fontSize: '13px', marginTop: '6px' }}>
+              {filteredSleep.length > 0 
+                ? `last night${filteredSleep[filteredSleep.length - 1].notes ? ` · ${filteredSleep[filteredSleep.length - 1].notes}` : ''}`
+                : 'no data yet'}
+            </div>
+          </div>
+
+          {/* Time range selector */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+            {['week', 'month', 'quarter'].map(r => (
+              <button
+                key={r}
+                onClick={() => setSleepRange(r)}
+                style={{
+                  background: sleepRange === r ? '#00aaff22' : '#1a1a1a',
+                  border: sleepRange === r ? '1px solid #00aaff' : '1px solid #333',
+                  color: sleepRange === r ? '#00aaff' : '#666',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  fontFamily: 'Space Mono, monospace',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {r === 'quarter' ? '3 months' : r}
+              </button>
+            ))}
+          </div>
+
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={filteredSleep}>
+              <XAxis dataKey="date" stroke="#444" style={{ fontSize: '10px' }} />
+              <YAxis domain={[0, 10]} ticks={[0, 2.5, 5, 7.5, 10]} stroke="#444" style={{ fontSize: '10px' }} />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const d = payload[0].payload;
+                  return (
+                    <div style={{ background: '#0f0f0f', border: '1px solid #333', borderRadius: '8px', padding: '10px 14px', fontSize: '12px' }}>
+                      <div style={{ color: '#fff', marginBottom: '4px' }}>{d.date} — <span style={{ color: '#00aaff', fontWeight: '700' }}>{d.score}/10</span></div>
+                      {d.notes && <div style={{ color: '#888', fontSize: '11px', maxWidth: '180px' }}>{d.notes}</div>}
+                    </div>
+                  );
+                }}
+              />
+              <Line type="monotone" dataKey="score" stroke="#00aaff" strokeWidth={2} dot={{ fill: '#00aaff', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: '#00aaff', stroke: '#0f0f0f', strokeWidth: 2 }} />
+            </LineChart>
+          </ResponsiveContainer>
+
+          {/* Recent entries with notes */}
+          <div style={{ marginTop: '16px' }}>
+            {filteredSleep.filter(d => d.notes).slice(-4).reverse().map((d, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #1a1a1a', fontSize: '12px' }}>
+                <span style={{ color: '#888' }}>{d.date}</span>
+                <span style={{ color: '#00aaff', fontFamily: 'Space Mono, monospace', fontWeight: '700', minWidth: '40px' }}>{d.score}</span>
+                <span style={{ color: '#666', flex: 1, marginLeft: '12px', textAlign: 'right' }}>{d.notes}</span>
+              </div>
+            ))}
           </div>
         </div>
 
