@@ -102,7 +102,8 @@ const generateSampleData = () => ({
     { date: '10/12', fullDate: '2025-12-10', score: 6.0, notes: '' },
     { date: '20/12', fullDate: '2025-12-20', score: 7.0, notes: '' },
     { date: '25/12', fullDate: '2025-12-25', score: 8.5, notes: '' }
-  ]
+  ],
+  demoMode: false
 });
 
 const App = () => {
@@ -155,6 +156,7 @@ const App = () => {
     const netWorthRaw = [];
     const habits = { apps: 0, vlogs: 0, pm: 0 };
     const sleep = [];
+    let demoMode = false;
 
     // Current year for filtering habits
     const currentYear = new Date().getFullYear();
@@ -223,6 +225,11 @@ const App = () => {
           score: data.score || 0,
           notes: data.notes || ''
         });
+      } else if (entry.category === 'settings') {
+        // Read demo mode setting
+        if (data.demo_mode !== undefined) {
+          demoMode = data.demo_mode;
+        }
       }
     });
 
@@ -230,7 +237,7 @@ const App = () => {
     // and carry forward the last known value for each account
     const netWorth = buildNetWorthTimeline(netWorthRaw);
 
-    return { finance, dating, todos, netWorth, habits, sleep: sleep.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate)) };
+    return { finance, dating, todos, netWorth, habits, sleep: sleep.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate)), demoMode };
   };
 
   // Build a 6-month net worth timeline from snapshots
@@ -553,32 +560,32 @@ const App = () => {
               </span>
             </div>
             <div className="stat-number" style={{ fontSize: '56px' }}>
-              ${(() => {
+              {data.demoMode ? '•••••' : `$${(() => {
                 const nw = data.netWorth;
                 if (!nw || nw.length === 0) return '0';
                 const latest = nw[nw.length - 1];
                 return (latest.total || 0).toLocaleString();
-              })()}
+              })()}`}
             </div>
             <div style={{ display: 'flex', gap: '24px', marginTop: '12px' }}>
               <div>
                 <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '8px' }}>Savings</span>
                 <span style={{ color: '#00ff88', fontSize: '16px', fontFamily: 'Space Mono, monospace', fontWeight: '700' }}>
-                  ${(() => {
+                  {data.demoMode ? '•••••' : `$${(() => {
                     const nw = data.netWorth;
                     if (!nw || nw.length === 0) return '0';
                     return (nw[nw.length - 1].savings || 0).toLocaleString();
-                  })()}
+                  })()}`}
                 </span>
               </div>
               <div>
                 <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '8px' }}>Trading</span>
                 <span style={{ color: '#00ffff', fontSize: '16px', fontFamily: 'Space Mono, monospace', fontWeight: '700' }}>
-                  ${(() => {
+                  {data.demoMode ? '•••••' : `$${(() => {
                     const nw = data.netWorth;
                     if (!nw || nw.length === 0) return '0';
                     return (nw[nw.length - 1].trading || 0).toLocaleString();
-                  })()}
+                  })()}`}
                 </span>
               </div>
             </div>
@@ -587,11 +594,11 @@ const App = () => {
           <ResponsiveContainer width="100%" height={140}>
             <LineChart data={data.netWorth || []}>
               <XAxis dataKey="month" stroke="#444" style={{ fontSize: '11px' }} />
-              <YAxis stroke="#444" style={{ fontSize: '11px' }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
-              <Tooltip 
+              <YAxis stroke="#444" style={{ fontSize: '11px' }} tickFormatter={v => data.demoMode ? '•••' : `$${(v/1000).toFixed(0)}k`} />
+              {!data.demoMode && <Tooltip 
                 contentStyle={{ background: '#0f0f0f', border: '1px solid #333', borderRadius: '8px', fontSize: '12px' }}
                 formatter={(value) => [`$${value.toLocaleString()}`, '']}
-              />
+              />}
               <Line type="monotone" dataKey="total" stroke="#00ff88" strokeWidth={2} dot={{ fill: '#00ff88', r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -774,7 +781,7 @@ const App = () => {
         </div>
 
         {/* Dating Widget */}
-        <div className="widget" style={{
+        {!data.demoMode && <div className="widget" style={{
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
           border: '1px solid #333',
           borderRadius: '16px',
@@ -929,7 +936,7 @@ const App = () => {
               ))}
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Habits Widget */}
         <div className="widget" style={{
