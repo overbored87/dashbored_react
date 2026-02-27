@@ -315,17 +315,20 @@ const App = () => {
 
   // Filter finance data by time range
   const getFilteredFinanceData = () => {
-    const now = new Date('2026-02-13'); // Current date
+    const now = new Date();
     let cutoffDate;
     
     switch(timeRange) {
       case 'week':
+        // Monday of the current week
         cutoffDate = new Date(now);
-        cutoffDate.setDate(cutoffDate.getDate() - 7);
+        const day = cutoffDate.getDay(); // 0=Sun, 1=Mon, ...
+        const diffToMonday = day === 0 ? 6 : day - 1;
+        cutoffDate.setDate(cutoffDate.getDate() - diffToMonday);
+        cutoffDate.setHours(0, 0, 0, 0);
         break;
       case 'month':
-        cutoffDate = new Date(now);
-        cutoffDate.setMonth(cutoffDate.getMonth() - 1);
+        cutoffDate = new Date(now.getFullYear(), now.getMonth(), 1);
         break;
       case 'quarter':
         cutoffDate = new Date(now);
@@ -637,7 +640,7 @@ const App = () => {
             </div>
             <div className="stat-number">${totalSpending}</div>
             <div style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-              {timeRange === 'week' && 'spent this week'}
+              {timeRange === 'week' && 'spent this week (since Mon)'}
               {timeRange === 'month' && 'spent this month'}
               {timeRange === 'quarter' && 'spent last 3 months'}
               {timeRange === 'all' && 'total spending'}
