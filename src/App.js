@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase configuration - Replace with your actual values
@@ -109,8 +109,6 @@ const generateSampleData = () => ({
 const App = () => {
   const [data, setData] = useState(generateSampleData());
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('week'); // 'week', 'month', 'quarter', 'all'
-  const [sleepRange, setSleepRange] = useState('week');
 
   useEffect(() => {
     loadData();
@@ -314,74 +312,9 @@ const App = () => {
   };
 
   // Filter finance data by time range
-  const getFilteredFinanceData = () => {
-    const now = new Date();
-    let cutoffDate;
-    
-    switch(timeRange) {
-      case 'week':
-        // Monday of the current week
-        cutoffDate = new Date(now);
-        const day = cutoffDate.getDay(); // 0=Sun, 1=Mon, ...
-        const diffToMonday = day === 0 ? 6 : day - 1;
-        cutoffDate.setDate(cutoffDate.getDate() - diffToMonday);
-        cutoffDate.setHours(0, 0, 0, 0);
-        break;
-      case 'month':
-        cutoffDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        break;
-      case 'quarter':
-        cutoffDate = new Date(now);
-        cutoffDate.setMonth(cutoffDate.getMonth() - 3);
-        break;
-      case 'all':
-        return data.finance;
-      default:
-        cutoffDate = new Date(now);
-        cutoffDate.setDate(cutoffDate.getDate() - 7);
-    }
-    
-    return data.finance.filter(item => {
-      const itemDate = new Date(item.fullDate);
-      return itemDate >= cutoffDate;
-    });
-  };
-
-  const filteredFinance = getFilteredFinanceData();
-
-  // Consolidate spending per day for the bar chart
-  const consolidatedFinance = Object.values(
-    filteredFinance.reduce((acc, item) => {
-      const key = item.fullDate;
-      if (!acc[key]) {
-        acc[key] = { date: item.date, fullDate: item.fullDate, amount: 0 };
-      }
-      acc[key].amount += item.amount;
-      return acc;
-    }, {})
-  ).sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
-
-  // Calculate metrics
-  const totalSpending = filteredFinance.reduce((sum, item) => sum + item.amount, 0);
   const totalDating = (data.dating?.activePursuit?.length || 0) + 
                       (data.dating?.onlineOnly?.length || 0) + 
                       (data.dating?.backBurner?.length || 0);
-
-  // Filter sleep data by range
-  const getFilteredSleepData = () => {
-    const allSleep = data.sleep || [];
-    if (allSleep.length === 0) return [];
-    const now = new Date();
-    let cutoff;
-    switch (sleepRange) {
-      case 'week': cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 7); break;
-      case 'month': cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 1); break;
-      case 'quarter': cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3); break;
-      default: cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - 7);
-    }
-    return allSleep.filter(item => new Date(item.fullDate) >= cutoff);
-  };
-  const filteredSleep = getFilteredSleepData();
 
   if (loading) {
     return (
@@ -607,109 +540,6 @@ const App = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Finance Widget */}
-        <div className="widget" style={{
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
-          border: '1px solid #333',
-          borderRadius: '16px',
-          padding: '24px',
-          position: 'relative',
-          overflow: 'hidden',
-          gridColumn: 'span 2'
-        }}>
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            width: '200px',
-            height: '200px',
-            background: 'radial-gradient(circle, rgba(0,255,136,0.1) 0%, transparent 70%)',
-            pointerEvents: 'none'
-          }}></div>
-          
-          <div style={{ marginBottom: '24px' }}>
-            <div style={{ 
-              color: '#00ff88',
-              fontSize: '12px',
-              fontFamily: 'Space Mono, monospace',
-              textTransform: 'uppercase',
-              letterSpacing: '2px',
-              marginBottom: '12px'
-            }}>
-              💰 Spending
-            </div>
-            <div className="stat-number">${totalSpending}</div>
-            <div style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-              {timeRange === 'week' && 'spent this week (since Mon)'}
-              {timeRange === 'month' && 'spent this month'}
-              {timeRange === 'quarter' && 'spent last 3 months'}
-              {timeRange === 'all' && 'total spending'}
-            </div>
-          </div>
-
-          {/* Time Range Selector */}
-          <div style={{
-            display: 'flex',
-            gap: '8px',
-            marginBottom: '20px',
-            flexWrap: 'wrap'
-          }}>
-            {['week', 'month', 'quarter', 'all'].map(range => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                style={{
-                  background: timeRange === range ? '#00ff8822' : '#1a1a1a',
-                  border: timeRange === range ? '1px solid #00ff88' : '1px solid #333',
-                  color: timeRange === range ? '#00ff88' : '#666',
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  fontSize: '11px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  fontFamily: 'Space Mono, monospace',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {range === 'quarter' ? '3 months' : range}
-              </button>
-            ))}
-          </div>
-
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={consolidatedFinance.slice(-20)}>
-              <Bar dataKey="amount" fill="#00ff88" radius={[4, 4, 0, 0]} />
-              <XAxis dataKey="date" stroke="#444" style={{ fontSize: '11px' }} />
-              <YAxis stroke="#444" style={{ fontSize: '11px' }} />
-              <Tooltip 
-                contentStyle={{ 
-                  background: '#0f0f0f', 
-                  border: '1px solid #333',
-                  borderRadius: '8px',
-                  fontSize: '12px'
-                }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-
-          <div style={{ marginTop: '20px' }}>
-            {filteredFinance.slice(-3).map((item, i) => (
-              <div key={i} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '8px 0',
-                borderBottom: i < 2 ? '1px solid #222' : 'none',
-                fontSize: '13px'
-              }}>
-                <span style={{ color: '#999' }}>{item.date} • {item.category}</span>
-                <span style={{ color: '#fff', fontFamily: 'Space Mono, monospace' }}>
-                  ${item.amount}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Todos Widget */}
         <div className="widget" style={{
@@ -1036,113 +866,6 @@ const App = () => {
           </div>
         </div>
 
-        {/* Sleep Widget */}
-        <div className="widget" style={{
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
-          border: '1px solid #333',
-          borderRadius: '16px',
-          padding: '24px',
-          position: 'relative',
-          overflow: 'hidden',
-          gridColumn: 'span 2'
-        }}>
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            width: '300px',
-            height: '300px',
-            background: 'radial-gradient(circle, rgba(0,170,255,0.06) 0%, transparent 70%)',
-            pointerEvents: 'none'
-          }}></div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{ 
-              color: '#00aaff',
-              fontSize: '12px',
-              fontFamily: 'Space Mono, monospace',
-              textTransform: 'uppercase',
-              letterSpacing: '2px',
-              marginBottom: '12px'
-            }}>
-              😴 Sleep Tracker
-            </div>
-            <div style={{
-              fontFamily: 'Space Mono, monospace',
-              fontSize: '48px',
-              fontWeight: '700',
-              lineHeight: '1',
-              background: 'linear-gradient(135deg, #00aaff, #8855ff)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
-              {filteredSleep.length > 0 ? filteredSleep[filteredSleep.length - 1].score : '—'}
-              <span style={{ fontSize: '24px' }}>/10</span>
-            </div>
-            <div style={{ color: '#666', fontSize: '13px', marginTop: '6px' }}>
-              {filteredSleep.length > 0 
-                ? `last night${filteredSleep[filteredSleep.length - 1].notes ? ` · ${filteredSleep[filteredSleep.length - 1].notes}` : ''}`
-                : 'no data yet'}
-            </div>
-          </div>
-
-          {/* Time range selector */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-            {['week', 'month', 'quarter'].map(r => (
-              <button
-                key={r}
-                onClick={() => setSleepRange(r)}
-                style={{
-                  background: sleepRange === r ? '#00aaff22' : '#1a1a1a',
-                  border: sleepRange === r ? '1px solid #00aaff' : '1px solid #333',
-                  color: sleepRange === r ? '#00aaff' : '#666',
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  fontSize: '11px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  fontFamily: 'Space Mono, monospace',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {r === 'quarter' ? '3 months' : r}
-              </button>
-            ))}
-          </div>
-
-          <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={filteredSleep}>
-              <XAxis dataKey="date" stroke="#444" style={{ fontSize: '10px' }} />
-              <YAxis domain={[0, 10]} ticks={[0, 2.5, 5, 7.5, 10]} stroke="#444" style={{ fontSize: '10px' }} />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null;
-                  const d = payload[0].payload;
-                  return (
-                    <div style={{ background: '#0f0f0f', border: '1px solid #333', borderRadius: '8px', padding: '10px 14px', fontSize: '12px' }}>
-                      <div style={{ color: '#fff', marginBottom: '4px' }}>{d.date} — <span style={{ color: '#00aaff', fontWeight: '700' }}>{d.score}/10</span></div>
-                      {d.notes && <div style={{ color: '#888', fontSize: '11px', maxWidth: '180px' }}>{d.notes}</div>}
-                    </div>
-                  );
-                }}
-              />
-              <Line type="monotone" dataKey="score" stroke="#00aaff" strokeWidth={2} dot={{ fill: '#00aaff', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: '#00aaff', stroke: '#0f0f0f', strokeWidth: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
-
-          {/* Recent entries with notes */}
-          <div style={{ marginTop: '16px' }}>
-            {filteredSleep.filter(d => d.notes).slice(-4).reverse().map((d, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #1a1a1a', fontSize: '12px' }}>
-                <span style={{ color: '#888' }}>{d.date}</span>
-                <span style={{ color: '#00aaff', fontFamily: 'Space Mono, monospace', fontWeight: '700', minWidth: '40px' }}>{d.score}</span>
-                <span style={{ color: '#666', flex: 1, marginLeft: '12px', textAlign: 'right' }}>{d.notes}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
       </div>
 
