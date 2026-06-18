@@ -715,7 +715,7 @@ micBtn.addEventListener('click', () => {
 // Init
 // ---------------------------------------------------------------------------
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/voice-sw.js').catch(() => {});
+  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
 }
 
 // Open settings on first load if unconfigured
