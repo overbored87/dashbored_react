@@ -350,10 +350,9 @@ function scheduleReset(ms = 4000) {
 // ---------------------------------------------------------------------------
 function buildPrompt(message) {
   const now = new Date();
-  const sgOffset = 8 * 60;
-  const sgTime = new Date(now.getTime() + (sgOffset - now.getTimezoneOffset()) * 60000);
+  const sgTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
   const currentDate = sgTime.toISOString().slice(0, 10);
-  const currentDatetime = sgTime.toISOString().replace('Z', '+08:00');
+  const currentDatetime = sgTime.toISOString().slice(0, 19) + '+08:00';
 
   return `You are a structured-data extraction engine for a personal dashboard.
 Your ONLY job is to return valid JSON — no commentary, no markdown fences.
