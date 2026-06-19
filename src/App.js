@@ -139,6 +139,9 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [prospects, setProspects] = useState([]);
   const [selectedProspect, setSelectedProspect] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -158,6 +161,32 @@ const App = () => {
       if (!error && rows) setProspects(rows);
     } catch (err) {
       console.log('Error loading prospects:', err);
+    }
+  };
+
+  const saveProspectEdit = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('prospects')
+        .update({
+          name: editForm.name,
+          stage: editForm.stage,
+          platform: editForm.platform || null,
+          location: editForm.location || null,
+          rating: editForm.rating ? parseFloat(editForm.rating) : null,
+          notes: editForm.notes || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedProspect.id);
+      if (error) throw error;
+      await loadProspects();
+      setSelectedProspect(p => ({ ...p, ...editForm, rating: editForm.rating ? parseFloat(editForm.rating) : null }));
+      setEditMode(false);
+    } catch (err) {
+      console.error('Failed to save prospect:', err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -731,7 +760,7 @@ const App = () => {
 
         {/* Prospect modal */}
         {selectedProspect && (
-          <div onClick={() => setSelectedProspect(null)} style={{
+          <div onClick={() => { setSelectedProspect(null); setEditMode(false); }} style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
           }}>
@@ -744,11 +773,11 @@ const App = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
                 <div style={{
                   width: '52px', height: '52px', borderRadius: '50%',
-                  background: avatarColor(selectedProspect.name),
+                  background: avatarColor(editMode ? editForm.name : selectedProspect.name),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '22px', fontWeight: '700', color: '#0f0f0f', flexShrink: 0
                 }}>
-                  {(selectedProspect.name || '?')[0].toUpperCase()}
+                  {((editMode ? editForm.name : selectedProspect.name) || '?')[0].toUpperCase()}
                 </div>
                 <div>
                   <div style={{ color: '#fff', fontSize: '18px', fontWeight: '700' }}>{selectedProspect.name}</div>
@@ -757,38 +786,136 @@ const App = () => {
                     {selectedProspect.platform && ` · ${selectedProspect.platform}`}
                   </div>
                 </div>
-                <button onClick={() => setSelectedProspect(null)} style={{
+                <button onClick={() => { setSelectedProspect(null); setEditMode(false); }} style={{
                   marginLeft: 'auto', background: 'none', border: 'none', color: '#555',
                   fontSize: '22px', cursor: 'pointer', padding: '4px'
                 }}>✕</button>
               </div>
 
-              {/* Fields */}
-              {[
-                { label: 'Rating', value: <StarRating rating={selectedProspect.rating} /> },
-                { label: 'Location', value: selectedProspect.location },
-                { label: 'Notes', value: selectedProspect.notes },
-              ].filter(f => f.value).map(f => (
-                <div key={f.label} style={{ marginBottom: '16px' }}>
-                  <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>{f.label}</div>
-                  <div style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5' }}>{f.value}</div>
+              {editMode ? (
+                /* Edit form */
+                <div>
+                  {[
+                    { key: 'name', label: 'Name', type: 'text' },
+                    { key: 'platform', label: 'Platform', type: 'text', placeholder: 'Hinge, Bumble…' },
+                    { key: 'location', label: 'Location', type: 'text' },
+                    { key: 'rating', label: 'Rating (0.5–5)', type: 'number', placeholder: '3.5' },
+                  ].map(f => (
+                    <div key={f.key} style={{ marginBottom: '14px' }}>
+                      <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>{f.label}</div>
+                      <input
+                        type={f.type}
+                        value={editForm[f.key] || ''}
+                        placeholder={f.placeholder || ''}
+                        step={f.key === 'rating' ? '0.5' : undefined}
+                        min={f.key === 'rating' ? '0.5' : undefined}
+                        max={f.key === 'rating' ? '5' : undefined}
+                        onChange={e => setEditForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                        style={{
+                          width: '100%', background: '#111', border: '1px solid #333', borderRadius: '8px',
+                          color: '#fff', padding: '10px 12px', fontSize: '14px', outline: 'none',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <div style={{ marginBottom: '14px' }}>
+                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Stage</div>
+                    <select
+                      value={editForm.stage || ''}
+                      onChange={e => setEditForm(prev => ({ ...prev, stage: e.target.value }))}
+                      style={{
+                        width: '100%', background: '#111', border: '1px solid #333', borderRadius: '8px',
+                        color: '#fff', padding: '10px 12px', fontSize: '14px', outline: 'none',
+                        fontFamily: 'inherit', cursor: 'pointer',
+                      }}
+                    >
+                      {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Notes</div>
+                    <textarea
+                      value={editForm.notes || ''}
+                      onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                      rows={3}
+                      style={{
+                        width: '100%', background: '#111', border: '1px solid #333', borderRadius: '8px',
+                        color: '#fff', padding: '10px 12px', fontSize: '14px', outline: 'none',
+                        fontFamily: 'inherit', resize: 'vertical',
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={saveProspectEdit} disabled={saving} style={{
+                      flex: 1, background: '#fff', color: '#0f0f0f', border: 'none', borderRadius: '10px',
+                      padding: '12px', fontSize: '14px', fontWeight: '600', cursor: saving ? 'default' : 'pointer',
+                      opacity: saving ? 0.6 : 1,
+                    }}>
+                      {saving ? 'Saving…' : 'Save'}
+                    </button>
+                    <button onClick={() => setEditMode(false)} style={{
+                      flex: 1, background: 'none', color: '#888', border: '1px solid #333', borderRadius: '10px',
+                      padding: '12px', fontSize: '14px', cursor: 'pointer',
+                    }}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-              ))}
+              ) : (
+                /* View mode */
+                <div>
+                  {[
+                    { label: 'Rating', value: selectedProspect.rating ? <StarRating rating={selectedProspect.rating} /> : null },
+                    { label: 'Location', value: selectedProspect.location },
+                    { label: 'Notes', value: selectedProspect.notes },
+                  ].filter(f => f.value).map(f => (
+                    <div key={f.label} style={{ marginBottom: '16px' }}>
+                      <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>{f.label}</div>
+                      <div style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5' }}>{f.value}</div>
+                    </div>
+                  ))}
 
-              {/* Activity log */}
-              {selectedProspect.logs && selectedProspect.logs.length > 0 && (
-                <div style={{ marginTop: '20px' }}>
-                  <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Activity</div>
-                  {[...selectedProspect.logs].reverse().map((log, i) => {
-                    const d = new Date(log.date);
-                    const label = `${d.getDate()}/${d.getMonth() + 1}`;
-                    return (
-                      <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                        <div style={{ color: '#444', fontSize: '11px', fontFamily: 'Space Mono, monospace', whiteSpace: 'nowrap', paddingTop: '2px', minWidth: '36px' }}>{label}</div>
-                        <div style={{ color: '#999', fontSize: '13px', lineHeight: '1.5' }}>{log.text}</div>
-                      </div>
-                    );
-                  })}
+                  {/* Activity log */}
+                  {selectedProspect.logs && selectedProspect.logs.length > 0 && (
+                    <div style={{ marginTop: '4px', marginBottom: '20px' }}>
+                      <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Activity</div>
+                      {[...selectedProspect.logs].reverse().map((log, i) => {
+                        const d = new Date(log.date);
+                        const label = `${d.getDate()}/${d.getMonth() + 1}`;
+                        return (
+                          <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                            <div style={{ color: '#444', fontSize: '11px', fontFamily: 'Space Mono, monospace', whiteSpace: 'nowrap', paddingTop: '2px', minWidth: '36px' }}>{label}</div>
+                            <div style={{ color: '#999', fontSize: '13px', lineHeight: '1.5' }}>{log.text}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Edit button */}
+                  <button
+                    onClick={() => {
+                      setEditForm({
+                        name: selectedProspect.name,
+                        stage: selectedProspect.stage,
+                        platform: selectedProspect.platform || '',
+                        location: selectedProspect.location || '',
+                        rating: selectedProspect.rating || '',
+                        notes: selectedProspect.notes || '',
+                      });
+                      setEditMode(true);
+                    }}
+                    style={{
+                      width: '100%', background: 'none', border: '1px solid #333', borderRadius: '10px',
+                      color: '#888', padding: '11px', fontSize: '14px', cursor: 'pointer', marginTop: '8px',
+                      transition: 'border-color 0.2s, color 0.2s',
+                    }}
+                    onMouseEnter={e => { e.target.style.borderColor = '#555'; e.target.style.color = '#ccc'; }}
+                    onMouseLeave={e => { e.target.style.borderColor = '#333'; e.target.style.color = '#888'; }}
+                  >
+                    Edit
+                  </button>
                 </div>
               )}
             </div>
