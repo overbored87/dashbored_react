@@ -145,14 +145,27 @@ const App = () => {
   const [analyzeImages, setAnalyzeImages] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [wikiCount, setWikiCount] = useState(null);
 
   useEffect(() => {
     loadData();
     loadProspects();
-    const interval = setInterval(() => { loadData(); loadProspects(); }, 30000);
+    loadWikiCount();
+    const interval = setInterval(() => { loadData(); loadProspects(); loadWikiCount(); }, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadWikiCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('wiki_pages')
+        .select('*', { count: 'exact', head: true });
+      if (!error) setWikiCount(count);
+    } catch (err) {
+      console.log('Error loading wiki count:', err);
+    }
+  };
 
   const loadProspects = async () => {
     try {
@@ -1136,10 +1149,10 @@ Rating guide (based on HER messages only):
                 color: '#aa88ff',
                 lineHeight: '1'
               }}>
-                {data.habits?.apps || 0}
+                {wikiCount ?? '—'}
               </div>
               <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
-                apps shipped
+                wiki pages
               </div>
             </div>
 
@@ -1165,7 +1178,7 @@ Rating guide (based on HER messages only):
               </div>
             </div>
 
-            {/* PM */}
+            {/* Prospects */}
             <div style={{
               background: '#1a1a1a',
               border: '1px solid #aa88ff33',
@@ -1177,14 +1190,13 @@ Rating guide (based on HER messages only):
                 fontFamily: 'Space Mono, monospace',
                 fontSize: '40px',
                 fontWeight: '700',
-                color: (data.habits?.pm || 0) > Math.ceil((Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 1)) / 86400000) + 1) / 7)
-                  ? '#ff4444' : '#aa88ff',
+                color: '#aa88ff',
                 lineHeight: '1'
               }}>
-                {data.habits?.pm || 0}
+                {prospects.length}
               </div>
               <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
-                PM count
+                prospects
               </div>
             </div>
           </div>
