@@ -103,6 +103,25 @@
       font-size: 14px;
       margin-top: 60px;
     }
+    .setup-form {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .setup-form h2 { font-size: 15px; color: #888; margin-bottom: 16px; }
+    .setup-form label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 1px; }
+    .setup-form input {
+      width: 100%; background: #111; border: 1px solid #333; border-radius: 8px;
+      color: #fff; padding: 10px 12px; font-size: 13px; margin-bottom: 14px;
+      font-family: 'Courier New', monospace;
+    }
+    .setup-form button {
+      background: #ff0088; border: none; color: #fff; padding: 10px 20px;
+      border-radius: 8px; font-size: 14px; cursor: pointer; width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -131,6 +150,18 @@ function formatDate(iso) {
   return `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`;
 }
 
+function saveCreds() {
+  const existing = (() => { try { return JSON.parse(localStorage.getItem('logit_config')) || {}; } catch { return {}; } })();
+  const merged = {
+    ...existing,
+    dbUrl: document.getElementById('s-url').value.trim(),
+    dbKey: document.getElementById('s-key').value.trim(),
+    userId: document.getElementById('s-uid').value.trim(),
+  };
+  localStorage.setItem('logit_config', JSON.stringify(merged));
+  load();
+}
+
 async function load() {
   const cfg = (() => {
     try { return JSON.parse(localStorage.getItem('logit_config')) || {}; } catch { return {}; }
@@ -139,7 +170,16 @@ async function load() {
   const list = document.getElementById('list');
 
   if (!cfg.dbUrl || !cfg.dbKey || !cfg.userId) {
-    list.innerHTML = '<div class="empty">No credentials configured.<br>Open the voice app and set up your keys first.</div>';
+    list.innerHTML = `<div class="setup-form">
+      <h2>Enter credentials</h2>
+      <label>Supabase URL</label>
+      <input id="s-url" placeholder="https://xxx.supabase.co" value="${cfg.dbUrl || ''}">
+      <label>Supabase Key</label>
+      <input id="s-key" placeholder="eyJ..." value="${cfg.dbKey || ''}">
+      <label>User ID</label>
+      <input id="s-uid" placeholder="268934826" value="${cfg.userId || ''}">
+      <button onclick="saveCreds()">Save &amp; Load</button>
+    </div>`;
     return;
   }
 
