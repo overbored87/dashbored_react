@@ -142,6 +142,9 @@ const App = () => {
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [analyzeImages, setAnalyzeImages] = useState([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -184,6 +187,84 @@ const App = () => {
       setEditMode(false);
     } catch (err) {
       console.error('Failed to save prospect:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const analyzeConversation = async () => {
+    setAnalyzing(true);
+    setAnalysisResult(null);
+    try {
+      const imageContents = await Promise.all(analyzeImages.map(async (file) => ({
+        type: 'image',
+        source: { type: 'base64', media_type: file.type, data: await toBase64(file) },
+      })));
+
+      const prompt = `You are analyzing a dating app / messaging conversation between the user and ${selectedProspect.name}.
+
+IMPORTANT: Text bubbles on the RIGHT side of the screen are sent by the USER. Text bubbles on the LEFT side are sent by ${selectedProspect.name}. Do not mix these up.
+
+Assess ${selectedProspect.name}'s messages for vibe, engagement, and interest level. The user's messages provide context only.
+
+Return ONLY a valid JSON object, no markdown:
+{
+  "notes": "Vibe: <one line>\\nInterests: <comma-separated or — if unclear>\\nGreen flags: <one line or —>\\nRed flags: <one line or —>\\nNext move: <one line suggested action>",
+  "rating": <number from 0.5 to 5 in 0.5 increments>,
+  "rating_reason": "<one line explaining the rating>"
+}
+
+Rating guide (based on HER messages only):
+1.0–1.5 = barely engaged, very short replies, no questions back
+2.0–2.5 = polite but passive, not investing much
+3.0–3.5 = decent engagement, some warmth and reciprocation
+4.0–4.5 = high engagement, asks questions, shows enthusiasm
+5.0 = exceptional — initiates topics, suggests meetups, strong chemistry`;
+
+      const resp = await fetch('/api/parse', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: [...imageContents, { type: 'text', text: prompt }] }],
+        }),
+      });
+      if (!resp.ok) throw new Error(`API ${resp.status}`);
+      const body = await resp.json();
+      let text = body.content[0].text.trim().replace(/^```(?:json)?\s*/m, '').replace(/\s*```$/m, '');
+      setAnalysisResult(JSON.parse(text));
+    } catch (err) {
+      console.error(err);
+      setAnalysisResult({ error: err.message });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const applyAnalysis = async () => {
+    setSaving(true);
+    try {
+      const updates = {
+        notes: analysisResult.notes,
+        updated_at: new Date().toISOString(),
+        ...(analysisResult.rating && { rating: analysisResult.rating }),
+      };
+      const { error } = await supabase.from('prospects').update(updates).eq('id', selectedProspect.id);
+      if (error) throw error;
+      await loadProspects();
+      setSelectedProspect(p => ({ ...p, ...updates }));
+      setAnalysisResult(null);
+      setAnalyzeImages([]);
+    } catch (err) {
+      console.error(err);
     } finally {
       setSaving(false);
     }
@@ -759,7 +840,7 @@ const App = () => {
 
         {/* Prospect modal */}
         {selectedProspect && (
-          <div onClick={() => { setSelectedProspect(null); setEditMode(false); }} style={{
+          <div onClick={() => { setSelectedProspect(null); setEditMode(false); setAnalyzeImages([]); setAnalysisResult(null); }} style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
           }}>
@@ -785,7 +866,7 @@ const App = () => {
                     {selectedProspect.platform && ` · ${selectedProspect.platform}`}
                   </div>
                 </div>
-                <button onClick={() => { setSelectedProspect(null); setEditMode(false); }} style={{
+                <button onClick={() => { setSelectedProspect(null); setEditMode(false); setAnalyzeImages([]); setAnalysisResult(null); }} style={{
                   marginLeft: 'auto', background: 'none', border: 'none', color: '#555',
                   fontSize: '22px', cursor: 'pointer', padding: '4px'
                 }}>✕</button>
@@ -927,6 +1008,87 @@ const App = () => {
                   >
                     Edit
                   </button>
+
+                  {/* Conversation analyzer */}
+                  <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #222' }}>
+                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
+                      Analyze conversation
+                    </div>
+
+                    {/* Image upload */}
+                    <label style={{
+                      display: 'block', border: '1px dashed #333', borderRadius: '10px',
+                      padding: '16px', textAlign: 'center', cursor: 'pointer', marginBottom: '10px',
+                      color: '#555', fontSize: '13px', transition: 'border-color 0.2s',
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = '#555'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = '#333'}
+                    >
+                      {analyzeImages.length === 0 ? '+ Upload screenshots' : `${analyzeImages.length} screenshot${analyzeImages.length > 1 ? 's' : ''} selected`}
+                      <input type="file" accept="image/*" multiple style={{ display: 'none' }}
+                        onChange={e => { setAnalyzeImages(Array.from(e.target.files)); setAnalysisResult(null); }}
+                      />
+                    </label>
+
+                    {/* Thumbnails */}
+                    {analyzeImages.length > 0 && (
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                        {analyzeImages.map((f, i) => (
+                          <div key={i} style={{ position: 'relative' }}>
+                            <img src={URL.createObjectURL(f)} alt="" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #333' }} />
+                            <button onClick={() => setAnalyzeImages(prev => prev.filter((_, j) => j !== i))}
+                              style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#333', border: 'none', borderRadius: '50%', color: '#fff', width: '18px', height: '18px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <button onClick={analyzeConversation} disabled={analyzeImages.length === 0 || analyzing}
+                      style={{
+                        width: '100%', background: analyzeImages.length === 0 ? '#111' : '#1a1a2e',
+                        border: `1px solid ${analyzeImages.length === 0 ? '#222' : '#aa88ff44'}`,
+                        borderRadius: '10px', color: analyzeImages.length === 0 ? '#444' : '#aa88ff',
+                        padding: '11px', fontSize: '14px', cursor: analyzeImages.length === 0 ? 'default' : 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {analyzing ? 'Analyzing…' : 'Analyze'}
+                    </button>
+
+                    {/* Result */}
+                    {analysisResult && !analysisResult.error && (
+                      <div style={{ marginTop: '14px', background: '#111', border: '1px solid #2a2a2a', borderRadius: '10px', padding: '16px' }}>
+                        <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>Result</div>
+                        <pre style={{ color: '#ccc', fontSize: '13px', lineHeight: '1.7', whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>
+                          {analysisResult.notes}
+                        </pre>
+                        {analysisResult.rating && (
+                          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #222' }}>
+                            <span style={{ color: '#ffaa00' }}>{'★'.repeat(Math.floor(analysisResult.rating))}{analysisResult.rating % 1 ? '½' : ''}</span>
+                            <span style={{ color: '#555', fontSize: '12px', marginLeft: '8px' }}>{analysisResult.rating} — {analysisResult.rating_reason}</span>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                          <button onClick={applyAnalysis} disabled={saving} style={{
+                            flex: 1, background: '#fff', color: '#0f0f0f', border: 'none', borderRadius: '8px',
+                            padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', opacity: saving ? 0.6 : 1,
+                          }}>
+                            {saving ? 'Saving…' : 'Apply to notes'}
+                          </button>
+                          <button onClick={() => { setAnalysisResult(null); setAnalyzeImages([]); }} style={{
+                            flex: 1, background: 'none', color: '#666', border: '1px solid #333', borderRadius: '8px',
+                            padding: '10px', fontSize: '13px', cursor: 'pointer',
+                          }}>
+                            Discard
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {analysisResult?.error && (
+                      <div style={{ marginTop: '10px', color: '#f87171', fontSize: '13px' }}>Error: {analysisResult.error}</div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
