@@ -146,15 +146,97 @@ const App = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [wikiCount, setWikiCount] = useState(null);
+  const [spendView, setSpendView] = useState('7d');
+  const [spendData, setSpendData] = useState({ bars: [], categories: [] });
 
   useEffect(() => {
     loadData();
     loadProspects();
     loadWikiCount();
-    const interval = setInterval(() => { loadData(); loadProspects(); loadWikiCount(); }, 30000);
+    loadSpend('7d');
+    const interval = setInterval(() => { loadData(); loadProspects(); loadWikiCount(); loadSpend(spendView); }, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadSpend = async (view) => {
+    const now = new Date();
+    let since, groupFn, labelFn;
+
+    if (view === '7d') {
+      since = new Date(now); since.setDate(now.getDate() - 6); since.setHours(0,0,0,0);
+      groupFn = (d) => d.toISOString().slice(0, 10);
+      labelFn = (key) => { const d = new Date(key); return `${d.getDate()}/${d.getMonth()+1}`; };
+    } else if (view === '8w') {
+      since = new Date(now); since.setDate(now.getDate() - 55); since.setHours(0,0,0,0);
+      groupFn = (d) => {
+        const startOfWeek = new Date(d);
+        startOfWeek.setDate(d.getDate() - d.getDay());
+        return startOfWeek.toISOString().slice(0, 10);
+      };
+      labelFn = (key) => { const d = new Date(key); return `${d.getDate()}/${d.getMonth()+1}`; };
+    } else {
+      since = new Date(now); since.setMonth(now.getMonth() - 5); since.setDate(1); since.setHours(0,0,0,0);
+      groupFn = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      labelFn = (key) => MONTHS[parseInt(key.split('-')[1]) - 1];
+    }
+
+    try {
+      const { data: rows, error } = await supabase
+        .from('dashboard_entries')
+        .select('data, created_at')
+        .eq('category', 'finance')
+        .gte('created_at', since.toISOString());
+
+      if (error || !rows) return;
+
+      const barMap = {};
+      const catMap = {};
+
+      rows.forEach(row => {
+        const d = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+        const amount = Math.abs(d.amount || 0);
+        if (!amount) return;
+        const date = new Date(d.date || row.created_at);
+        const key = groupFn(date);
+        barMap[key] = (barMap[key] || 0) + amount;
+        const cat = (d.subcategory || d.description || 'other').toLowerCase();
+        catMap[cat] = (catMap[cat] || 0) + amount;
+      });
+
+      // Fill in all expected buckets with 0 if missing
+      const bars = [];
+      if (view === '7d') {
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now); d.setDate(now.getDate() - i); d.setHours(0,0,0,0);
+          const key = groupFn(d);
+          bars.push({ label: labelFn(new Date(key)), amount: barMap[key] || 0 });
+        }
+      } else if (view === '8w') {
+        for (let i = 7; i >= 0; i--) {
+          const d = new Date(now); d.setDate(now.getDate() - i * 7);
+          const key = groupFn(d);
+          if (!bars.find(b => b.key === key)) bars.push({ key, label: labelFn(new Date(key)), amount: barMap[key] || 0 });
+        }
+      } else {
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now); d.setMonth(now.getMonth() - i); d.setDate(1);
+          const key = groupFn(d);
+          bars.push({ label: labelFn(key), amount: barMap[key] || 0 });
+        }
+      }
+
+      const categories = Object.entries(catMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, total]) => ({ name, total }));
+
+      setSpendData({ bars, categories });
+    } catch (err) {
+      console.log('Error loading spend:', err);
+    }
+  };
 
   const loadWikiCount = async () => {
     try {
@@ -699,6 +781,81 @@ Rating guide (based on HER messages only):
           </ResponsiveContainer>
         </div>
 
+        {/* Spending Widget */}
+        <div className="widget" style={{
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
+          border: '1px solid #333',
+          borderRadius: '16px',
+          padding: '24px',
+          gridColumn: 'span 2'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <div style={{ color: '#ff6600', fontSize: '12px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '2px' }}>
+              💸 Spending
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {[['7d','7 Days'],['8w','8 Weeks'],['6m','6 Months']].map(([key, label]) => (
+                <button key={key} onClick={() => { setSpendView(key); loadSpend(key); }} style={{
+                  background: spendView === key ? '#ff6600' : 'transparent',
+                  border: `1px solid ${spendView === key ? '#ff6600' : '#333'}`,
+                  color: spendView === key ? '#000' : '#666',
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontFamily: 'Space Mono, monospace',
+                  cursor: 'pointer'
+                }}>{label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Bar chart */}
+          {(() => {
+            const max = Math.max(...spendData.bars.map(b => b.amount), 1);
+            return (
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '120px', marginBottom: '20px' }}>
+                {spendData.bars.map((bar, i) => (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                    <div style={{ fontSize: '9px', color: '#555', fontFamily: 'Space Mono, monospace', marginBottom: '3px' }}>
+                      {bar.amount > 0 ? `$${bar.amount.toFixed(0)}` : ''}
+                    </div>
+                    <div style={{
+                      width: '100%',
+                      height: `${(bar.amount / max) * 85}%`,
+                      minHeight: bar.amount > 0 ? '4px' : '0',
+                      background: 'linear-gradient(180deg, #ff6600 0%, #ff440088 100%)',
+                      borderRadius: '4px 4px 0 0',
+                    }} />
+                    <div style={{ fontSize: '9px', color: '#555', fontFamily: 'Space Mono, monospace', marginTop: '5px' }}>
+                      {bar.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* Top categories */}
+          {spendData.categories.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ fontSize: '11px', color: '#555', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Top Categories</div>
+              {spendData.categories.map((cat, i) => {
+                const maxCat = spendData.categories[0].total;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '90px', fontSize: '12px', color: '#888', fontFamily: 'Space Mono, monospace', textTransform: 'capitalize', flexShrink: 0 }}>{cat.name}</div>
+                    <div style={{ flex: 1, background: '#1a1a1a', borderRadius: '4px', height: '6px' }}>
+                      <div style={{ width: `${(cat.total / maxCat) * 100}%`, height: '100%', background: '#ff6600', borderRadius: '4px' }} />
+                    </div>
+                    <div style={{ width: '60px', textAlign: 'right', fontSize: '12px', color: '#ff6600', fontFamily: 'Space Mono, monospace' }}>${cat.total.toFixed(0)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ color: '#444', fontSize: '13px', textAlign: 'center', paddingTop: '8px' }}>No spend data for this period</div>
+          )}
+        </div>
 
         {/* Todos Widget */}
         <div className="widget" style={{
