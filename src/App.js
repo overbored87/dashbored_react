@@ -173,7 +173,6 @@ const App = () => {
           name: editForm.name,
           stage: editForm.stage,
           platform: editForm.platform || null,
-          location: editForm.location || null,
           rating: editForm.rating ? parseFloat(editForm.rating) : null,
           notes: editForm.notes || null,
           updated_at: new Date().toISOString(),
@@ -798,7 +797,6 @@ const App = () => {
                   {[
                     { key: 'name', label: 'Name', type: 'text' },
                     { key: 'platform', label: 'Platform', type: 'text', placeholder: 'Hinge, Bumble…' },
-                    { key: 'location', label: 'Location', type: 'text' },
                     { key: 'rating', label: 'Rating (0.5–5)', type: 'number', placeholder: '3.5' },
                   ].map(f => (
                     <div key={f.key} style={{ marginBottom: '14px' }}>
@@ -833,8 +831,8 @@ const App = () => {
                       {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                     </select>
                   </div>
-                  <div style={{ marginBottom: '20px' }}>
-                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Notes</div>
+                  <div style={{ marginBottom: '14px' }}>
+                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Notes <span style={{ color: '#444', textTransform: 'none', letterSpacing: 0 }}>— preferences, context</span></div>
                     <textarea
                       value={editForm.notes || ''}
                       onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
@@ -845,6 +843,21 @@ const App = () => {
                         fontFamily: 'inherit', resize: 'vertical',
                       }}
                     />
+                  </div>
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Activity <span style={{ color: '#444', textTransform: 'none', letterSpacing: 0 }}>— read-only, add via voice</span></div>
+                    {selectedProspect.logs && selectedProspect.logs.length > 0
+                      ? [...selectedProspect.logs].reverse().map((log, i) => {
+                          const d = new Date(log.date);
+                          return (
+                            <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '6px' }}>
+                              <div style={{ color: '#444', fontSize: '11px', fontFamily: 'Space Mono, monospace', whiteSpace: 'nowrap', paddingTop: '2px', minWidth: '36px' }}>{d.getDate()}/{d.getMonth()+1}</div>
+                              <div style={{ color: '#666', fontSize: '13px', lineHeight: '1.5' }}>{log.text}</div>
+                            </div>
+                          );
+                        })
+                      : <div style={{ color: '#444', fontSize: '13px', fontStyle: 'italic' }}>No activity yet</div>
+                    }
                   </div>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={saveProspectEdit} disabled={saving} style={{
@@ -867,7 +880,6 @@ const App = () => {
                 <div>
                   {[
                     { label: 'Rating', value: selectedProspect.rating ? <StarRating rating={selectedProspect.rating} /> : null },
-                    { label: 'Location', value: selectedProspect.location },
                     { label: 'Notes', value: selectedProspect.notes },
                   ].filter(f => f.value).map(f => (
                     <div key={f.label} style={{ marginBottom: '16px' }}>
@@ -900,7 +912,6 @@ const App = () => {
                         name: selectedProspect.name,
                         stage: selectedProspect.stage,
                         platform: selectedProspect.platform || '',
-                        location: selectedProspect.location || '',
                         rating: selectedProspect.rating || '',
                         notes: selectedProspect.notes || '',
                       });
