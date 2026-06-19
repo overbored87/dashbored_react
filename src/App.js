@@ -843,7 +843,7 @@ Rating guide (based on HER messages only):
                 const maxCat = spendData.categories[0].total;
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '90px', fontSize: '12px', color: '#888', fontFamily: 'Space Mono, monospace', textTransform: 'capitalize', flexShrink: 0 }}>{cat.name}</div>
+                    <div style={{ width: '90px', fontSize: '12px', color: '#888', fontFamily: 'Space Mono, monospace', flexShrink: 0 }}>{cat.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</div>
                     <div style={{ flex: 1, background: '#1a1a1a', borderRadius: '4px', height: '6px' }}>
                       <div style={{ width: `${(cat.total / maxCat) * 100}%`, height: '100%', background: '#ff6600', borderRadius: '4px' }} />
                     </div>
