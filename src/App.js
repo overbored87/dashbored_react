@@ -2,6 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 
+const STAGES = [
+  { key: 'texting',    label: 'Texting',    color: '#ff0088' },
+  { key: 'first_date', label: 'First Date', color: '#ff6600' },
+  { key: 'seeing',     label: 'Seeing',     color: '#00ff88' },
+  { key: 'back_burner',label: 'Back Burner',color: '#666' },
+];
+const AVATAR_COLORS = ['#ff0088','#ff6600','#ffaa00','#00ff88','#00ffff','#aa88ff','#ff88cc'];
+const avatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
+
+const StarRating = ({ rating }) => {
+  if (!rating) return <span style={{ color: '#444', fontSize: '12px' }}>—</span>;
+  return (
+    <span>
+      {[1,2,3,4,5].map(i => {
+        const fill = Math.min(1, Math.max(0, rating - (i - 1)));
+        if (fill >= 1) return <span key={i} style={{ color: '#ffaa00', fontSize: '13px' }}>★</span>;
+        if (fill >= 0.5) return (
+          <span key={i} style={{ position: 'relative', display: 'inline-block', fontSize: '13px' }}>
+            <span style={{ color: '#333' }}>★</span>
+            <span style={{ position: 'absolute', left: 0, top: 0, overflow: 'hidden', width: '50%', color: '#ffaa00' }}>★</span>
+          </span>
+        );
+        return <span key={i} style={{ color: '#333', fontSize: '13px' }}>★</span>;
+      })}
+    </span>
+  );
+};
+
 // Supabase configuration - Replace with your actual values
 const supabase = createClient(
   'https://nlijrpfuzcxftbcuwzte.supabase.co',  // e.g., 'https://xxxxx.supabase.co'
@@ -109,15 +137,29 @@ const generateSampleData = () => ({
 const App = () => {
   const [data, setData] = useState(generateSampleData());
   const [loading, setLoading] = useState(true);
+  const [prospects, setProspects] = useState([]);
+  const [selectedProspect, setSelectedProspect] = useState(null);
 
   useEffect(() => {
     loadData();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(loadData, 30000);
+    loadProspects();
+    const interval = setInterval(() => { loadData(); loadProspects(); }, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadProspects = async () => {
+    try {
+      const { data: rows, error } = await supabase
+        .from('prospects')
+        .select('*')
+        .eq('archived', false)
+        .order('updated_at', { ascending: false });
+      if (!error && rows) setProspects(rows);
+    } catch (err) {
+      console.log('Error loading prospects:', err);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -310,11 +352,6 @@ const App = () => {
       loadData();
     }
   };
-
-  // Filter finance data by time range
-  const totalDating = (data.dating?.activePursuit?.length || 0) + 
-                      (data.dating?.onlineOnly?.length || 0) + 
-                      (data.dating?.backBurner?.length || 0);
 
   if (loading) {
     return (
@@ -613,7 +650,7 @@ const App = () => {
           ))}
         </div>
 
-        {/* Dating Widget */}
+        {/* Dating CRM Widget */}
         {!data.demoMode && <div className="widget" style={{
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
           border: '1px solid #333',
@@ -621,155 +658,142 @@ const App = () => {
           padding: '24px',
           gridColumn: 'span 2'
         }}>
-          <div style={{ marginBottom: '24px' }}>
-            <div style={{ 
-              color: '#ff0088',
-              fontSize: '12px',
-              fontFamily: 'Space Mono, monospace',
-              textTransform: 'uppercase',
-              letterSpacing: '2px',
-              marginBottom: '12px'
-            }}>
-              💕 Dating Funnel
+          {/* Widget header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <div>
+              <div style={{ color: '#ff0088', fontSize: '12px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px' }}>
+                💕 Dating CRM
+              </div>
+              <div className="stat-number" style={{ fontSize: '40px', background: 'linear-gradient(135deg, #ff0088 0%, #ff8800 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                {prospects.length}
+              </div>
+              <div style={{ color: '#666', fontSize: '13px', marginTop: '4px' }}>in pipeline</div>
             </div>
-            <div className="stat-number" style={{
-              background: 'linear-gradient(135deg, #ff0088 0%, #ff8800 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}>
-              {totalDating}
-            </div>
-            <div style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-              total in pipeline
-            </div>
+            <a href="/archive.html" style={{ color: '#555', fontSize: '13px', fontFamily: 'Space Mono, monospace', textDecoration: 'none', border: '1px solid #333', padding: '8px 14px', borderRadius: '8px', transition: 'color 0.2s' }}
+              onMouseEnter={e => e.target.style.color='#aaa'} onMouseLeave={e => e.target.style.color='#555'}>
+              Archive →
+            </a>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '20px'
-          }}>
-            {/* Active Pursuit List */}
-            <div>
-              <div style={{
-                color: '#ff0088',
-                fontSize: '13px',
-                fontWeight: '600',
-                marginBottom: '16px',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                fontFamily: 'Space Mono, monospace'
-              }}>
-                Active Pursuit ({data.dating.activePursuit.length})
-              </div>
-              {data.dating.activePursuit.map((person, i) => (
-                <div key={i} style={{
-                  background: '#1a1a1a',
-                  border: '1px solid #ff008844',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '12px'
-                }}>
-                  <div style={{ 
-                    color: '#fff',
-                    fontWeight: '600',
-                    fontSize: '15px',
-                    marginBottom: '8px'
-                  }}>
-                    {person.name}
-                  </div>
-                  <div style={{ 
-                    color: '#999',
-                    fontSize: '12px',
-                    lineHeight: '1.5'
-                  }}>
-                    {person.notes}
-                  </div>
+          {/* Stage rows */}
+          {STAGES.map(stage => {
+            const cards = prospects.filter(p => p.stage === stage.key);
+            return (
+              <div key={stage.key} style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                  <span style={{ color: stage.color, fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>
+                    {stage.label}
+                  </span>
+                  <span style={{ color: '#333', fontSize: '11px' }}>{cards.length}</span>
+                  <div style={{ flex: 1, height: '1px', background: '#2a2a2a' }} />
                 </div>
-              ))}
-            </div>
-
-            {/* Online Only List */}
-            <div>
-              <div style={{
-                color: '#ffaa00',
-                fontSize: '13px',
-                fontWeight: '600',
-                marginBottom: '16px',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                fontFamily: 'Space Mono, monospace'
-              }}>
-                Online Only ({data.dating.onlineOnly.length})
-              </div>
-              {data.dating.onlineOnly.map((person, i) => (
-                <div key={i} style={{
-                  background: '#1a1a1a',
-                  border: '1px solid #ffaa0033',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '12px'
-                }}>
-                  <div style={{ 
-                    color: '#fff',
-                    fontWeight: '600',
-                    fontSize: '15px',
-                    marginBottom: '8px'
-                  }}>
-                    {person.name}
-                  </div>
-                  <div style={{ 
-                    color: '#999',
-                    fontSize: '12px',
-                    lineHeight: '1.5'
-                  }}>
-                    {person.notes}
-                  </div>
+                <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                  {cards.length === 0 && (
+                    <div style={{ color: '#333', fontSize: '12px', fontStyle: 'italic', padding: '8px 0' }}>empty</div>
+                  )}
+                  {cards.map(p => (
+                    <div key={p.id}
+                      onClick={() => setSelectedProspect(p)}
+                      style={{
+                        background: '#111',
+                        border: `1px solid ${stage.color}22`,
+                        borderRadius: '12px',
+                        padding: '14px',
+                        minWidth: '110px',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                        transition: 'border-color 0.2s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = stage.color + '66'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = stage.color + '22'}
+                    >
+                      <div style={{
+                        width: '40px', height: '40px', borderRadius: '50%',
+                        background: avatarColor(p.name),
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '16px', fontWeight: '700', color: '#0f0f0f',
+                        marginBottom: '10px'
+                      }}>
+                        {(p.name || '?')[0].toUpperCase()}
+                      </div>
+                      <div style={{ color: '#fff', fontSize: '13px', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px' }}>
+                        {p.name}
+                      </div>
+                      {p.platform && <div style={{ color: '#555', fontSize: '11px', marginBottom: '4px' }}>{p.platform}</div>}
+                      <StarRating rating={p.rating} />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            {/* Back Burner List */}
-            <div>
-              <div style={{
-                color: '#666',
-                fontSize: '13px',
-                fontWeight: '600',
-                marginBottom: '16px',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                fontFamily: 'Space Mono, monospace'
-              }}>
-                Back Burner ({data.dating.backBurner.length})
               </div>
-              {data.dating.backBurner.map((person, i) => (
-                <div key={i} style={{
-                  background: '#1a1a1a',
-                  border: '1px solid #333',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '12px'
-                }}>
-                  <div style={{ 
-                    color: '#aaa',
-                    fontWeight: '600',
-                    fontSize: '15px',
-                    marginBottom: '8px'
-                  }}>
-                    {person.name}
-                  </div>
-                  <div style={{ 
-                    color: '#666',
-                    fontSize: '12px',
-                    lineHeight: '1.5'
-                  }}>
-                    {person.notes}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+            );
+          })}
         </div>}
+
+        {/* Prospect modal */}
+        {selectedProspect && (
+          <div onClick={() => setSelectedProspect(null)} style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+          }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              background: '#1a1a1a', border: '1px solid #333', borderRadius: '20px',
+              padding: '28px', width: '100%', maxWidth: '420px', maxHeight: '80vh',
+              overflowY: 'auto'
+            }}>
+              {/* Modal header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
+                <div style={{
+                  width: '52px', height: '52px', borderRadius: '50%',
+                  background: avatarColor(selectedProspect.name),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '22px', fontWeight: '700', color: '#0f0f0f', flexShrink: 0
+                }}>
+                  {(selectedProspect.name || '?')[0].toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ color: '#fff', fontSize: '18px', fontWeight: '700' }}>{selectedProspect.name}</div>
+                  <div style={{ color: '#555', fontSize: '13px', marginTop: '2px' }}>
+                    {STAGES.find(s => s.key === selectedProspect.stage)?.label || selectedProspect.stage}
+                    {selectedProspect.platform && ` · ${selectedProspect.platform}`}
+                  </div>
+                </div>
+                <button onClick={() => setSelectedProspect(null)} style={{
+                  marginLeft: 'auto', background: 'none', border: 'none', color: '#555',
+                  fontSize: '22px', cursor: 'pointer', padding: '4px'
+                }}>✕</button>
+              </div>
+
+              {/* Fields */}
+              {[
+                { label: 'Rating', value: <StarRating rating={selectedProspect.rating} /> },
+                { label: 'Location', value: selectedProspect.location },
+                { label: 'Notes', value: selectedProspect.notes },
+              ].filter(f => f.value).map(f => (
+                <div key={f.label} style={{ marginBottom: '16px' }}>
+                  <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>{f.label}</div>
+                  <div style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5' }}>{f.value}</div>
+                </div>
+              ))}
+
+              {/* Activity log */}
+              {selectedProspect.logs && selectedProspect.logs.length > 0 && (
+                <div style={{ marginTop: '20px' }}>
+                  <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Activity</div>
+                  {[...selectedProspect.logs].reverse().map((log, i) => {
+                    const d = new Date(log.date);
+                    const label = `${d.getDate()}/${d.getMonth() + 1}`;
+                    return (
+                      <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                        <div style={{ color: '#444', fontSize: '11px', fontFamily: 'Space Mono, monospace', whiteSpace: 'nowrap', paddingTop: '2px', minWidth: '36px' }}>{label}</div>
+                        <div style={{ color: '#999', fontSize: '13px', lineHeight: '1.5' }}>{log.text}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Habits Widget */}
         <div className="widget" style={{

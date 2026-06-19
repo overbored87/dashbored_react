@@ -377,12 +377,17 @@ CATEGORIES (pick exactly one):
    Required: at least one of savings (number) or trading (number). Include both if the user provides both.
    Optional: date (YYYY-MM-DD, default today)
 
-3. **dating** — matches, dates, follow-ups, rejections, relationship status updates.
-   For action "add":
-     Required: person (title case), status ("active" | "texting" | "backburner")
-     Optional: platform, activity, location, notes, date (YYYY-MM-DD), rating (1-5)
-   For action "remove":
-     Required: person (the name to remove)
+3. **prospect** — dating prospects / CRM entries. Use for creating, updating, logging activity, or archiving someone.
+   Always set action: "add". Put operation inside data.
+   data.operation: "create" | "update" | "log" | "archive"
+   For "create" or "update":
+     Required in data: name (title case), operation, stage ("texting" | "first_date" | "seeing" | "back_burner")
+     Optional in data: platform (e.g. "Hinge", "Bumble"), location, rating (0.5–5, half-stars), notes
+   For "log":
+     Required in data: name, operation, log_text (short activity note about what happened)
+   For "archive":
+     Required in data: name, operation
+     Optional in data: archive_reason
 
 4. **todos** — tasks, reminders, goals, deadlines.
    For action "add":
@@ -423,7 +428,7 @@ RULES:
 OUTPUT SCHEMA:
 {
   "action": "add" | "remove",
-  "category": "finance" | "net_worth" | "dating" | "todos" | "habits" | "sleep" | "unknown",
+  "category": "finance" | "net_worth" | "prospect" | "todos" | "habits" | "sleep" | "unknown",
   "data": { ... },
   "confidence": 0.0-1.0,
   "needs_clarification": false,
@@ -440,18 +445,18 @@ Now parse this message:
 const REQUIRED_FIELDS = {
   finance:   ['amount', 'description', 'subcategory'],
   net_worth: [],
-  dating:    ['person', 'status'],
+  prospect:  ['name', 'operation'],
   todos:     ['task', 'priority', 'status'],
   habits:    ['habit'],
   sleep:     ['score'],
 };
 
 const REQUIRED_FIELDS_REMOVE = {
-  finance: [], net_worth: [], dating: ['person'], todos: [], habits: [], sleep: [],
+  finance: [], net_worth: [], prospect: ['name'], todos: [], habits: [], sleep: [],
 };
 
 const VALID_ENUMS = {
-  dating: { status: ['active', 'texting', 'backburner'] },
+  prospect: { stage: ['texting', 'first_date', 'seeing', 'back_burner'] },
   todos:  { priority: ['high', 'medium', 'low'], status: ['pending', 'in_progress', 'done'] },
   habits: { habit: ['apps', 'vlogs', 'pm'] },
 };
@@ -498,9 +503,13 @@ function summarise(category, data) {
     if ('trading' in data) parts.push(`Trading $${data.trading.toLocaleString()}`);
     return parts.join(' · ');
   }
-  if (category === 'dating') {
-    const icons = { active: '🟢', texting: '💬', backburner: '⏸️' };
-    return `${icons[data.status] || '💕'} ${data.person} — ${data.status}`;
+  if (category === 'prospect') {
+    const op = data.operation;
+    if (op === 'create') return `💕 Added ${data.name}${data.stage ? ` · ${data.stage}` : ''}`;
+    if (op === 'update') return `✏️ Updated ${data.name}${data.stage ? ` → ${data.stage}` : ''}`;
+    if (op === 'log') return `📝 Logged for ${data.name}`;
+    if (op === 'archive') return `📦 Archived ${data.name}`;
+    return `💕 ${data.name}`;
   }
   if (category === 'todos') {
     const icons = { high: '🔴', medium: '🟡', low: '🟢' };
@@ -562,6 +571,25 @@ async function saveToSupabase(category, data, cfg) {
     body: JSON.stringify(row),
   });
   if (!resp.ok) throw new Error(`Supabase ${resp.status}`);
+}
+
+// ---------------------------------------------------------------------------
+// Prospect save — calls /api/prospect serverless function
+// ---------------------------------------------------------------------------
+async function saveProspect(data, cfg) {
+  const resp = await fetch('/api/prospect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: cfg.userId,
+      operation: data.operation,
+      data,
+    }),
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}));
+    throw new Error(body.error || `Prospect API ${resp.status}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -649,7 +677,11 @@ async function processText(text) {
       data.tags = data.tags || [];
     }
 
-    await saveToSupabase(parsed.category, data, cfg);
+    if (parsed.category === 'prospect') {
+      await saveProspect(data, cfg);
+    } else {
+      await saveToSupabase(parsed.category, data, cfg);
+    }
 
     const summary = summarise(parsed.category, data);
     setState('success', { result: summary });

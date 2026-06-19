@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Archive — Dashbored</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0f0f0f;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .header {
+      max-width: 600px;
+      margin: 0 auto 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .back-btn {
+      background: none;
+      border: 1px solid #333;
+      color: #888;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .back-btn:hover { border-color: #555; color: #ccc; }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #555;
+      font-family: 'Courier New', monospace;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+    .list {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      flex-shrink: 0;
+      color: #0f0f0f;
+    }
+    .info { flex: 1; min-width: 0; }
+    .name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #ccc;
+      margin-bottom: 4px;
+    }
+    .meta {
+      font-size: 12px;
+      color: #555;
+      font-family: 'Courier New', monospace;
+    }
+    .reason {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .empty {
+      text-align: center;
+      color: #444;
+      font-size: 14px;
+      margin-top: 60px;
+    }
+    #loading {
+      text-align: center;
+      color: #555;
+      font-size: 14px;
+      margin-top: 60px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <a class="back-btn" href="/">← Back</a>
+  <div>
+    <h1>Archive</h1>
+    <div class="subtitle">Past prospects</div>
+  </div>
+</div>
+
+<div class="list" id="list">
+  <div id="loading">Loading…</div>
+</div>
+
+<script>
+const COLORS = ['#ff0088','#ff6600','#ffaa00','#00ff88','#00ffff','#aa88ff','#ff88cc'];
+function avatarColor(name) {
+  return COLORS[(name || '?').charCodeAt(0) % COLORS.length];
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`;
+}
+
+async function load() {
+  const cfg = (() => {
+    try { return JSON.parse(localStorage.getItem('logit_config')) || {}; } catch { return {}; }
+  })();
+
+  const list = document.getElementById('list');
+
+  if (!cfg.dbUrl || !cfg.dbKey || !cfg.userId) {
+    list.innerHTML = '<div class="empty">No credentials configured.<br>Open the voice app and set up your keys first.</div>';
+    return;
+  }
+
+  try {
+    const resp = await fetch(
+      `${cfg.dbUrl}/rest/v1/prospects?user_id=eq.${encodeURIComponent(cfg.userId)}&archived=eq.true&order=updated_at.desc`,
+      {
+        headers: {
+          apikey: cfg.dbKey,
+          Authorization: `Bearer ${cfg.dbKey}`,
+        },
+      }
+    );
+    if (!resp.ok) throw new Error(`${resp.status}`);
+    const rows = await resp.json();
+
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty">No archived prospects yet.</div>';
+      return;
+    }
+
+    list.innerHTML = rows.map(p => {
+      const initials = p.name ? p.name[0].toUpperCase() : '?';
+      const color = avatarColor(p.name);
+      return `
+        <div class="card">
+          <div class="avatar" style="background:${color}">${initials}</div>
+          <div class="info">
+            <div class="name">${p.name}</div>
+            ${p.archive_reason ? `<div class="reason">${p.archive_reason}</div>` : ''}
+            <div class="meta">${p.stage || ''} · archived ${formatDate(p.updated_at)}</div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="empty">Error: ${err.message}</div>`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>
