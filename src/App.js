@@ -90,6 +90,7 @@ const generateSampleData = () => ({
     { month: 'Jan', savings: 26000, trading: 11500, total: 37500 },
     { month: 'Feb', savings: 27000, trading: 12000, total: 39000 }
   ], { lastUpdated: '10/02/26' }),
+  habits: { apps: 5, vlogs: 4, pm: 3 },
   demoMode: false
 });
 
@@ -263,6 +264,9 @@ const App = () => {
   const transformEntries = (entries) => {
     const finance = [];
     const todos = [];
+    const habits = { apps: 0, vlogs: 0, pm: 0 };
+    // Current year for filtering habits
+    const currentYear = new Date().getFullYear();
     const netWorthRaw = [];
     let demoMode = false;
 
@@ -299,6 +303,14 @@ const App = () => {
             reminderTime: data.reminder_time || null
           });
         }
+      } else if (entry.category === 'habits') {
+        // Only count habits from current year
+        const entryDate = new Date(data.date || entry.created_at);
+        if (entryDate.getFullYear() === currentYear) {
+          const habit = data.habit;
+          if (habit in habits) {
+            habits[habit] += 1;
+          }
       } else if (entry.category === 'settings') {
         // Read demo mode setting
         if (data.demo_mode !== undefined) {
@@ -311,7 +323,7 @@ const App = () => {
     // and carry forward the last known value for each account
     const netWorth = buildNetWorthTimeline(netWorthRaw);
 
-    return { finance, todos, netWorth, demoMode };
+    return { finance, todos, netWorth, habits, demoMode };
   };
 
   // Build a 6-month net worth timeline from snapshots
@@ -1016,6 +1028,78 @@ const App = () => {
           </div>
         )}
 
+
+        {/* Habits Widget */}
+        <div className="widget" style={{
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
+          border: '1px solid #333',
+          borderRadius: '16px',
+          padding: '24px',
+          gridColumn: 'span 2'
+        }}>
+          <div style={{ 
+            color: '#aa88ff',
+            fontSize: '12px',
+            fontFamily: 'Space Mono, monospace',
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            marginBottom: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            🔁 Habits
+            <span style={{ color: '#555', fontSize: '11px', textTransform: 'none', letterSpacing: '0' }}>
+              Week {Math.ceil((Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 1)) / 86400000) + 1) / 7)} of {new Date().getFullYear()}
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '20px' }}>
+            {/* Vlogs */}
+            <div style={{
+              background: '#1a1a1a',
+              border: '1px solid #aa88ff33',
+              borderRadius: '12px',
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '40px',
+                fontWeight: '700',
+                color: '#aa88ff',
+                lineHeight: '1'
+              }}>
+                {data.habits?.vlogs || 0}
+              </div>
+              <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
+                vlogs shot
+              </div>
+            </div>
+
+            {/* Prospects */}
+            <div style={{
+              background: '#1a1a1a',
+              border: '1px solid #aa88ff33',
+              borderRadius: '12px',
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '40px',
+                fontWeight: '700',
+                color: '#aa88ff',
+                lineHeight: '1'
+              }}>
+                {prospects.length}
+              </div>
+              <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
+                prospects
+              </div>
+            </div>
+          </div>
+        </div>
 
 
       </div>
