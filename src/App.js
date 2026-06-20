@@ -311,6 +311,7 @@ const App = () => {
           if (habit in habits) {
             habits[habit] += 1;
           }
+        }
       } else if (entry.category === 'settings') {
         // Read demo mode setting
         if (data.demo_mode !== undefined) {
