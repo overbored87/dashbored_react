@@ -2,33 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 
-const STAGES = [
-  { key: 'texting',    label: 'Texting',    color: '#ff0088' },
-  { key: 'first_date', label: 'First Date', color: '#ff6600' },
-  { key: 'seeing',     label: 'Seeing',     color: '#00ff88' },
-  { key: 'back_burner',label: 'Back Burner',color: '#666' },
-];
-const AVATAR_COLORS = ['#ff0088','#ff6600','#ffaa00','#00ff88','#00ffff','#aa88ff','#ff88cc'];
-const avatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
 
-const StarRating = ({ rating }) => {
-  if (!rating) return <span style={{ color: '#444', fontSize: '12px' }}>—</span>;
-  return (
-    <span>
-      {[1,2,3,4,5].map(i => {
-        const fill = Math.min(1, Math.max(0, rating - (i - 1)));
-        if (fill >= 1) return <span key={i} style={{ color: '#ffaa00', fontSize: '13px' }}>★</span>;
-        if (fill >= 0.5) return (
-          <span key={i} style={{ position: 'relative', display: 'inline-block', fontSize: '13px' }}>
-            <span style={{ color: '#333' }}>★</span>
-            <span style={{ position: 'absolute', left: 0, top: 0, overflow: 'hidden', width: '50%', color: '#ffaa00' }}>★</span>
-          </span>
-        );
-        return <span key={i} style={{ color: '#333', fontSize: '13px' }}>★</span>;
-      })}
-    </span>
-  );
-};
 
 // Supabase configuration - Replace with your actual values
 const supabase = createClient(
@@ -75,22 +49,6 @@ const generateSampleData = () => ({
     { date: '27/12', fullDate: '2025-12-27', amount: 234, category: 'dining' },
     { date: '30/12', fullDate: '2025-12-30', amount: 123, category: 'groceries' }
   ],
-  dating: {
-    activePursuit: [
-      { name: 'Sarah', notes: 'Met 14/2, went well. Coffee date planned for Sat' },
-      { name: 'Jessica', notes: 'Dinner 10/2, good chemistry. Text her Thursday' },
-      { name: 'Olivia', notes: 'Met 8/2 drinks, fun vibe. Following up this week' }
-    ],
-    onlineOnly: [
-      { name: 'Emma', notes: 'Hinge match, chatting about travel. Ask her out soon' },
-      { name: 'Sophie', notes: 'Bumble, architect, seems interesting' },
-      { name: 'Mia', notes: 'Matched 12/2, good banter, getting her number' }
-    ],
-    backBurner: [
-      { name: 'Rachel', notes: 'Went on 2 dates, lukewarm. Keep warm' },
-      { name: 'Kate', notes: 'Met at party, got number, low priority' }
-    ]
-  },
   todos: [
     { id: 'sample-1', task: 'Q1 performance review', due: '2/18', priority: 'high', status: 'pending' },
     { id: 'sample-2', task: 'Dentist appointment', due: '2/21', priority: 'medium', status: 'pending' },
@@ -104,52 +62,19 @@ const generateSampleData = () => ({
     { month: 'Jan', savings: 26000, trading: 11500, total: 37500 },
     { month: 'Feb', savings: 27000, trading: 12000, total: 39000 }
   ], { lastUpdated: '10/02/26' }),
-  habits: { apps: 5, vlogs: 4, pm: 3 },
-  sleep: [
-    { date: '12/2', fullDate: '2026-02-12', score: 6.5, notes: 'alcohol, slept at 2am' },
-    { date: '13/2', fullDate: '2026-02-13', score: 5.0, notes: 'woke up 4am, work stress' },
-    { date: '14/2', fullDate: '2026-02-14', score: 7.5, notes: 'melatonin' },
-    { date: '15/2', fullDate: '2026-02-15', score: 8.0, notes: '' },
-    { date: '16/2', fullDate: '2026-02-16', score: 6.0, notes: 'late dinner, restless' },
-    { date: '17/2', fullDate: '2026-02-17', score: 7.0, notes: 'slept at 12am' },
-    { date: '18/2', fullDate: '2026-02-18', score: 8.5, notes: 'melatonin, no screens' },
-    { date: '19/1', fullDate: '2026-01-19', score: 7.0, notes: '' },
-    { date: '21/1', fullDate: '2026-01-21', score: 6.0, notes: 'alcohol' },
-    { date: '23/1', fullDate: '2026-01-23', score: 7.5, notes: '' },
-    { date: '25/1', fullDate: '2026-01-25', score: 5.5, notes: 'insomnia' },
-    { date: '27/1', fullDate: '2026-01-27', score: 8.0, notes: 'melatonin' },
-    { date: '29/1', fullDate: '2026-01-29', score: 7.0, notes: '' },
-    { date: '31/1', fullDate: '2026-01-31', score: 6.5, notes: 'late night coding' },
-    { date: '2/2', fullDate: '2026-02-02', score: 7.5, notes: '' },
-    { date: '4/2', fullDate: '2026-02-04', score: 6.0, notes: 'stress' },
-    { date: '6/2', fullDate: '2026-02-06', score: 8.0, notes: 'melatonin' },
-    { date: '8/2', fullDate: '2026-02-08', score: 7.0, notes: '' },
-    { date: '10/2', fullDate: '2026-02-10', score: 5.5, notes: 'alcohol, slept at 3am' },
-    { date: '20/11', fullDate: '2025-11-20', score: 7.0, notes: '' },
-    { date: '30/11', fullDate: '2025-11-30', score: 7.5, notes: '' },
-    { date: '10/12', fullDate: '2025-12-10', score: 6.0, notes: '' },
-    { date: '20/12', fullDate: '2025-12-20', score: 7.0, notes: '' },
-    { date: '25/12', fullDate: '2025-12-25', score: 8.5, notes: '' }
-  ],
   demoMode: false
 });
 
 const App = () => {
   const [data, setData] = useState(generateSampleData());
   const [loading, setLoading] = useState(true);
-  const [prospects, setProspects] = useState([]);
-  const [selectedProspect, setSelectedProspect] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState({});
-  const [saving, setSaving] = useState(false);
   const [spendView, setSpendView] = useState('7d');
   const [spendData, setSpendData] = useState({ bars: [], categories: [] });
 
   useEffect(() => {
     loadData();
-    loadProspects();
     loadSpend('7d');
-    const interval = setInterval(() => { loadData(); loadProspects(); loadSpend(spendView); }, 30000);
+    const interval = setInterval(() => { loadData(); loadSpend(spendView); }, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -234,44 +159,6 @@ const App = () => {
   };
 
 
-  const loadProspects = async () => {
-    try {
-      const { data: rows, error } = await supabase
-        .from('prospects')
-        .select('*')
-        .eq('archived', false)
-        .order('updated_at', { ascending: false });
-      if (!error && rows) setProspects(rows);
-    } catch (err) {
-      console.log('Error loading prospects:', err);
-    }
-  };
-
-  const saveProspectEdit = async () => {
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('prospects')
-        .update({
-          name: editForm.name,
-          stage: editForm.stage,
-          platform: editForm.platform || null,
-          rating: editForm.rating ? parseFloat(editForm.rating) : null,
-          notes: editForm.notes || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', selectedProspect.id);
-      if (error) throw error;
-      await loadProspects();
-      setSelectedProspect(p => ({ ...p, ...editForm, rating: editForm.rating ? parseFloat(editForm.rating) : null }));
-      setEditMode(false);
-    } catch (err) {
-      console.error('Failed to save prospect:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
 
   const loadData = async () => {
     try {
@@ -303,15 +190,10 @@ const App = () => {
   // Transform database entries into the format the dashboard expects
   const transformEntries = (entries) => {
     const finance = [];
-    const dating = { activePursuit: [], onlineOnly: [], backBurner: [] };
     const todos = [];
     const netWorthRaw = [];
-    const habits = { apps: 0, vlogs: 0, pm: 0 };
-    const sleep = [];
     let demoMode = false;
 
-    // Current year for filtering habits
-    const currentYear = new Date().getFullYear();
 
     entries.forEach(entry => {
       // Parse data if it's a string (bot saves as JSON string)
@@ -332,21 +214,6 @@ const App = () => {
           trading: data.trading,
           created_at: entry.created_at
         });
-      } else if (entry.category === 'dating') {
-        const person = {
-          name: data.person || 'Unknown',
-          notes: data.notes || data.activity || ''
-        };
-        
-        // Map to dashboard categories based on new status field
-        const status = data.status || 'backburner';
-        if (status === 'active') {
-          dating.activePursuit.push(person);
-        } else if (status === 'texting') {
-          dating.onlineOnly.push(person);
-        } else {
-          dating.backBurner.push(person);
-        }
       } else if (entry.category === 'todos') {
         // Only show pending/in_progress todos
         if (data.status !== 'done') {
@@ -360,23 +227,6 @@ const App = () => {
             reminderTime: data.reminder_time || null
           });
         }
-      } else if (entry.category === 'habits') {
-        // Only count habits from current year
-        const entryDate = new Date(data.date || entry.created_at);
-        if (entryDate.getFullYear() === currentYear) {
-          const habit = data.habit;
-          if (habit in habits) {
-            habits[habit] += 1;
-          }
-        }
-      } else if (entry.category === 'sleep') {
-        const date = new Date(data.date || entry.created_at);
-        sleep.push({
-          date: `${date.getDate()}/${date.getMonth() + 1}`,
-          fullDate: data.date || entry.created_at,
-          score: data.score || 0,
-          notes: data.notes || ''
-        });
       } else if (entry.category === 'settings') {
         // Read demo mode setting
         if (data.demo_mode !== undefined) {
@@ -389,7 +239,7 @@ const App = () => {
     // and carry forward the last known value for each account
     const netWorth = buildNetWorthTimeline(netWorthRaw);
 
-    return { finance, dating, todos, netWorth, habits, sleep: sleep.sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate)), demoMode };
+    return { finance, todos, netWorth, demoMode };
   };
 
   // Build a 6-month net worth timeline from snapshots
@@ -837,333 +687,6 @@ const App = () => {
           ))}
         </div>
 
-        {/* Dating CRM Widget */}
-        {!data.demoMode && <div className="widget" style={{
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
-          border: '1px solid #333',
-          borderRadius: '16px',
-          padding: '24px',
-          gridColumn: 'span 2'
-        }}>
-          {/* Widget header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-            <div>
-              <div style={{ color: '#ff0088', fontSize: '12px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px' }}>
-                💕 Dating CRM
-              </div>
-              <div className="stat-number" style={{ fontSize: '40px', background: 'linear-gradient(135deg, #ff0088 0%, #ff8800 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                {prospects.length}
-              </div>
-              <div style={{ color: '#666', fontSize: '13px', marginTop: '4px' }}>in pipeline</div>
-            </div>
-            <a href="/archive.html" style={{ color: '#555', fontSize: '13px', fontFamily: 'Space Mono, monospace', textDecoration: 'none', border: '1px solid #333', padding: '8px 14px', borderRadius: '8px', transition: 'color 0.2s' }}
-              onMouseEnter={e => e.target.style.color='#aaa'} onMouseLeave={e => e.target.style.color='#555'}>
-              Archive →
-            </a>
-          </div>
-
-          {/* Stage rows */}
-          {STAGES.map(stage => {
-            const cards = prospects.filter(p => p.stage === stage.key);
-            return (
-              <div key={stage.key} style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                  <span style={{ color: stage.color, fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>
-                    {stage.label}
-                  </span>
-                  <span style={{ color: '#333', fontSize: '11px' }}>{cards.length}</span>
-                  <div style={{ flex: 1, height: '1px', background: '#2a2a2a' }} />
-                </div>
-                <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
-                  {cards.length === 0 && (
-                    <div style={{ color: '#333', fontSize: '12px', fontStyle: 'italic', padding: '8px 0' }}>empty</div>
-                  )}
-                  {cards.map(p => (
-                    <div key={p.id}
-                      onClick={() => setSelectedProspect(p)}
-                      style={{
-                        background: '#111',
-                        border: `1px solid ${stage.color}22`,
-                        borderRadius: '12px',
-                        padding: '14px',
-                        minWidth: '110px',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                        transition: 'border-color 0.2s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = stage.color + '66'}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = stage.color + '22'}
-                    >
-                      <div style={{
-                        width: '40px', height: '40px', borderRadius: '50%',
-                        background: avatarColor(p.name),
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '16px', fontWeight: '700', color: '#0f0f0f',
-                        marginBottom: '10px'
-                      }}>
-                        {(p.name || '?')[0].toUpperCase()}
-                      </div>
-                      <div style={{ color: '#fff', fontSize: '13px', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px' }}>
-                        {p.name}
-                      </div>
-                      {p.platform && <div style={{ color: '#555', fontSize: '11px', marginBottom: '4px' }}>{p.platform}</div>}
-                      <StarRating rating={p.rating} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>}
-
-        {/* Prospect modal */}
-        {selectedProspect && (
-          <div onClick={() => { setSelectedProspect(null); setEditMode(false); }} style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
-          }}>
-            <div onClick={e => e.stopPropagation()} style={{
-              background: '#1a1a1a', border: '1px solid #333', borderRadius: '20px',
-              padding: '28px', width: '100%', maxWidth: '420px', maxHeight: '80vh',
-              overflowY: 'auto'
-            }}>
-              {/* Modal header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-                <div style={{
-                  width: '52px', height: '52px', borderRadius: '50%',
-                  background: avatarColor(editMode ? editForm.name : selectedProspect.name),
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '22px', fontWeight: '700', color: '#0f0f0f', flexShrink: 0
-                }}>
-                  {((editMode ? editForm.name : selectedProspect.name) || '?')[0].toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ color: '#fff', fontSize: '18px', fontWeight: '700' }}>{selectedProspect.name}</div>
-                  <div style={{ color: '#555', fontSize: '13px', marginTop: '2px' }}>
-                    {STAGES.find(s => s.key === selectedProspect.stage)?.label || selectedProspect.stage}
-                    {selectedProspect.platform && ` · ${selectedProspect.platform}`}
-                  </div>
-                </div>
-                <button onClick={() => { setSelectedProspect(null); setEditMode(false); }} style={{
-                  marginLeft: 'auto', background: 'none', border: 'none', color: '#555',
-                  fontSize: '22px', cursor: 'pointer', padding: '4px'
-                }}>✕</button>
-              </div>
-
-              {editMode ? (
-                /* Edit form */
-                <div>
-                  {[
-                    { key: 'name', label: 'Name', type: 'text' },
-                    { key: 'platform', label: 'Platform', type: 'text', placeholder: 'Hinge, Bumble…' },
-                    { key: 'rating', label: 'Rating (0.5–5)', type: 'number', placeholder: '3.5' },
-                  ].map(f => (
-                    <div key={f.key} style={{ marginBottom: '14px' }}>
-                      <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>{f.label}</div>
-                      <input
-                        type={f.type}
-                        value={editForm[f.key] || ''}
-                        placeholder={f.placeholder || ''}
-                        step={f.key === 'rating' ? '0.5' : undefined}
-                        min={f.key === 'rating' ? '0.5' : undefined}
-                        max={f.key === 'rating' ? '5' : undefined}
-                        onChange={e => setEditForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                        style={{
-                          width: '100%', background: '#111', border: '1px solid #333', borderRadius: '8px',
-                          color: '#fff', padding: '10px 12px', fontSize: '14px', outline: 'none',
-                          fontFamily: 'inherit',
-                        }}
-                      />
-                    </div>
-                  ))}
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Stage</div>
-                    <select
-                      value={editForm.stage || ''}
-                      onChange={e => setEditForm(prev => ({ ...prev, stage: e.target.value }))}
-                      style={{
-                        width: '100%', background: '#111', border: '1px solid #333', borderRadius: '8px',
-                        color: '#fff', padding: '10px 12px', fontSize: '14px', outline: 'none',
-                        fontFamily: 'inherit', cursor: 'pointer',
-                      }}
-                    >
-                      {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Notes <span style={{ color: '#444', textTransform: 'none', letterSpacing: 0 }}>— preferences, context</span></div>
-                    <textarea
-                      value={editForm.notes || ''}
-                      onChange={e => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
-                      rows={3}
-                      style={{
-                        width: '100%', background: '#111', border: '1px solid #333', borderRadius: '8px',
-                        color: '#fff', padding: '10px 12px', fontSize: '14px', outline: 'none',
-                        fontFamily: 'inherit', resize: 'vertical',
-                      }}
-                    />
-                  </div>
-                  <div style={{ marginBottom: '20px' }}>
-                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Activity <span style={{ color: '#444', textTransform: 'none', letterSpacing: 0 }}>— read-only, add via voice</span></div>
-                    {selectedProspect.logs && selectedProspect.logs.length > 0
-                      ? [...selectedProspect.logs].reverse().map((log, i) => {
-                          const d = new Date(log.date);
-                          return (
-                            <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '6px' }}>
-                              <div style={{ color: '#444', fontSize: '11px', fontFamily: 'Space Mono, monospace', whiteSpace: 'nowrap', paddingTop: '2px', minWidth: '36px' }}>{d.getDate()}/{d.getMonth()+1}</div>
-                              <div style={{ color: '#666', fontSize: '13px', lineHeight: '1.5' }}>{log.text}</div>
-                            </div>
-                          );
-                        })
-                      : <div style={{ color: '#444', fontSize: '13px', fontStyle: 'italic' }}>No activity yet</div>
-                    }
-                  </div>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={saveProspectEdit} disabled={saving} style={{
-                      flex: 1, background: '#fff', color: '#0f0f0f', border: 'none', borderRadius: '10px',
-                      padding: '12px', fontSize: '14px', fontWeight: '600', cursor: saving ? 'default' : 'pointer',
-                      opacity: saving ? 0.6 : 1,
-                    }}>
-                      {saving ? 'Saving…' : 'Save'}
-                    </button>
-                    <button onClick={() => setEditMode(false)} style={{
-                      flex: 1, background: 'none', color: '#888', border: '1px solid #333', borderRadius: '10px',
-                      padding: '12px', fontSize: '14px', cursor: 'pointer',
-                    }}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* View mode */
-                <div>
-                  {[
-                    { label: 'Rating', value: selectedProspect.rating ? <StarRating rating={selectedProspect.rating} /> : null },
-                    { label: 'Notes', value: selectedProspect.notes },
-                  ].filter(f => f.value).map(f => (
-                    <div key={f.label} style={{ marginBottom: '16px' }}>
-                      <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>{f.label}</div>
-                      <div style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.5' }}>{f.value}</div>
-                    </div>
-                  ))}
-
-                  {/* Activity log */}
-                  {selectedProspect.logs && selectedProspect.logs.length > 0 && (
-                    <div style={{ marginTop: '4px', marginBottom: '20px' }}>
-                      <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Activity</div>
-                      {[...selectedProspect.logs].reverse().map((log, i) => {
-                        const d = new Date(log.date);
-                        const label = `${d.getDate()}/${d.getMonth() + 1}`;
-                        return (
-                          <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                            <div style={{ color: '#444', fontSize: '11px', fontFamily: 'Space Mono, monospace', whiteSpace: 'nowrap', paddingTop: '2px', minWidth: '36px' }}>{label}</div>
-                            <div style={{ color: '#999', fontSize: '13px', lineHeight: '1.5' }}>{log.text}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Edit button */}
-                  <button
-                    onClick={() => {
-                      setEditForm({
-                        name: selectedProspect.name,
-                        stage: selectedProspect.stage,
-                        platform: selectedProspect.platform || '',
-                        rating: selectedProspect.rating || '',
-                        notes: selectedProspect.notes || '',
-                      });
-                      setEditMode(true);
-                    }}
-                    style={{
-                      width: '100%', background: 'none', border: '1px solid #333', borderRadius: '10px',
-                      color: '#888', padding: '11px', fontSize: '14px', cursor: 'pointer', marginTop: '8px',
-                      transition: 'border-color 0.2s, color 0.2s',
-                    }}
-                    onMouseEnter={e => { e.target.style.borderColor = '#555'; e.target.style.color = '#ccc'; }}
-                    onMouseLeave={e => { e.target.style.borderColor = '#333'; e.target.style.color = '#888'; }}
-                  >
-                    Edit
-                  </button>
-
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Habits Widget */}
-        <div className="widget" style={{
-          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
-          border: '1px solid #333',
-          borderRadius: '16px',
-          padding: '24px',
-          gridColumn: 'span 2'
-        }}>
-          <div style={{ 
-            color: '#aa88ff',
-            fontSize: '12px',
-            fontFamily: 'Space Mono, monospace',
-            textTransform: 'uppercase',
-            letterSpacing: '2px',
-            marginBottom: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            🔁 Habits
-            <span style={{ color: '#555', fontSize: '11px', textTransform: 'none', letterSpacing: '0' }}>
-              Week {Math.ceil((Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 1)) / 86400000) + 1) / 7)} of {new Date().getFullYear()}
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '20px' }}>
-            {/* Vlogs */}
-            <div style={{
-              background: '#1a1a1a',
-              border: '1px solid #aa88ff33',
-              borderRadius: '12px',
-              padding: '20px',
-              textAlign: 'center'
-            }}>
-              <div style={{
-                fontFamily: 'Space Mono, monospace',
-                fontSize: '40px',
-                fontWeight: '700',
-                color: '#aa88ff',
-                lineHeight: '1'
-              }}>
-                {data.habits?.vlogs || 0}
-              </div>
-              <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
-                vlogs shot
-              </div>
-            </div>
-
-            {/* Prospects */}
-            <div style={{
-              background: '#1a1a1a',
-              border: '1px solid #aa88ff33',
-              borderRadius: '12px',
-              padding: '20px',
-              textAlign: 'center'
-            }}>
-              <div style={{
-                fontFamily: 'Space Mono, monospace',
-                fontSize: '40px',
-                fontWeight: '700',
-                color: '#aa88ff',
-                lineHeight: '1'
-              }}>
-                {prospects.length}
-              </div>
-              <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
-                prospects
-              </div>
-            </div>
-          </div>
-        </div>
 
 
       </div>

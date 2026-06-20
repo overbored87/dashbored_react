@@ -377,43 +377,13 @@ CATEGORIES (pick exactly one):
    Required: at least one of savings (number) or trading (number). Include both if the user provides both.
    Optional: date (YYYY-MM-DD, default today)
 
-3. **prospect** — dating prospects / CRM entries. Use for creating, updating, logging activity, or archiving someone.
-   Always set action: "add". Put operation inside data.
-   data.operation: "create" | "update" | "log" | "archive"
-   For "create" or "update":
-     Required in data: name (title case), operation, stage ("texting" | "first_date" | "seeing" | "back_burner")
-     Optional in data: platform (e.g. "Hinge", "Bumble"), rating (0.5–5, half-stars), notes (general reference — her preferences, context, personality)
-   For "log":
-     Required in data: name, operation, log_text (activity entry — actual meetings, dates, calls. e.g. "Had coffee at Jewel, great vibe")
-   For "archive":
-     Required in data: name, operation
-     Optional in data: archive_reason
-
-4. **todos** — tasks, reminders, goals, deadlines.
+3. **todos** — tasks, reminders, goals, deadlines.
    For action "add":
      Required: task (concise description), priority ("high" | "medium" | "low"), status ("pending" | "in_progress" | "done")
      Optional: due (YYYY-MM-DD), tags (list of strings), reminder_time (ISO 8601 with timezone, e.g. "2026-02-15T15:00:00+08:00")
    If the user says "remind me" or mentions a specific time, ALWAYS set reminder_time.
    Interpret relative times based on current datetime. "morning" = 09:00, "afternoon" = 14:00, "evening" = 19:00, "tonight" = 20:00.
    Always use timezone offset +08:00 (Singapore Time).
-
-5. **habits** — tracking recurring habits: apps coded, vlogs shot, or PM.
-   Action is always "add".
-   Required: habit ("apps" | "vlogs" | "pm")
-   Optional: date (YYYY-MM-DD, default today), notes (string)
-   Trigger examples:
-   - "coded an app", "shipped an app", "launched a new app", "built an app" → habit: "apps"
-   - "shot a vlog", "filmed a vlog", "made a vlog", "recorded a vlog" → habit: "vlogs"
-   - "PM", "pm" → habit: "pm"
-
-6. **sleep** — daily sleep quality score with optional notes.
-   Action is always "add".
-   Required: score (number 0-10, supports decimals like 7.5)
-   Optional: date (YYYY-MM-DD, default today), notes (string)
-   Trigger examples:
-   - "sleep 7.5" → score: 7.5
-   - "sleep 6 out of 10, drank last night" → score: 6, notes: "alcohol"
-   - "last night 8 melatonin" → score: 8, notes: "melatonin"
 
 RULES:
 - Return ONLY a single JSON object. No markdown, no explanation.
@@ -428,7 +398,7 @@ RULES:
 OUTPUT SCHEMA:
 {
   "action": "add" | "remove",
-  "category": "finance" | "net_worth" | "prospect" | "todos" | "habits" | "sleep" | "unknown",
+  "category": "finance" | "net_worth" | "todos" | "unknown",
   "data": { ... },
   "confidence": 0.0-1.0,
   "needs_clarification": false,
@@ -445,20 +415,15 @@ Now parse this message:
 const REQUIRED_FIELDS = {
   finance:   ['amount', 'description', 'subcategory'],
   net_worth: [],
-  prospect:  ['name', 'operation'],
   todos:     ['task', 'priority', 'status'],
-  habits:    ['habit'],
-  sleep:     ['score'],
 };
 
 const REQUIRED_FIELDS_REMOVE = {
-  finance: [], net_worth: [], prospect: ['name'], todos: [], habits: [], sleep: [],
+  finance: [], net_worth: [], todos: [],
 };
 
 const VALID_ENUMS = {
-  prospect: { stage: ['texting', 'first_date', 'seeing', 'back_burner'] },
   todos:  { priority: ['high', 'medium', 'low'], status: ['pending', 'in_progress', 'done'] },
-  habits: { habit: ['apps', 'vlogs', 'pm'] },
 };
 
 function validate(parsed) {
@@ -482,10 +447,6 @@ function validate(parsed) {
       if (typeof data.savings !== 'number' && typeof data.trading !== 'number')
         return 'net_worth needs savings or trading';
     }
-    if (category === 'sleep') {
-      if (typeof data.score !== 'number' || data.score < 0 || data.score > 10)
-        return `Invalid sleep score: ${data.score}`;
-    }
   }
   return null;
 }
@@ -503,26 +464,10 @@ function summarise(category, data) {
     if ('trading' in data) parts.push(`Trading $${data.trading.toLocaleString()}`);
     return parts.join(' · ');
   }
-  if (category === 'prospect') {
-    const op = data.operation;
-    if (op === 'create') return `💕 Added ${data.name}${data.stage ? ` · ${data.stage}` : ''}`;
-    if (op === 'update') return `✏️ Updated ${data.name}${data.stage ? ` → ${data.stage}` : ''}`;
-    if (op === 'log') return `📝 Logged for ${data.name}`;
-    if (op === 'archive') return `📦 Archived ${data.name}`;
-    return `💕 ${data.name}`;
-  }
   if (category === 'todos') {
     const icons = { high: '🔴', medium: '🟡', low: '🟢' };
     let s = `${icons[data.priority] || '⚪'} ${data.task}`;
     if (data.due) s += ` (due ${data.due})`;
-    return s;
-  }
-  if (category === 'habits') {
-    return { apps: '🚀 App shipped!', vlogs: '🎬 Vlog shot!', pm: '🚬 PM logged' }[data.habit] || data.habit;
-  }
-  if (category === 'sleep') {
-    let s = `${data.score}/10 sleep`;
-    if (data.notes) s += ` — ${data.notes}`;
     return s;
   }
   return JSON.stringify(data);
@@ -571,25 +516,6 @@ async function saveToSupabase(category, data, cfg) {
     body: JSON.stringify(row),
   });
   if (!resp.ok) throw new Error(`Supabase ${resp.status}`);
-}
-
-// ---------------------------------------------------------------------------
-// Prospect save — calls /api/prospect serverless function
-// ---------------------------------------------------------------------------
-async function saveProspect(data, cfg) {
-  const resp = await fetch('/api/prospect', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userId: cfg.userId,
-      operation: data.operation,
-      data,
-    }),
-  });
-  if (!resp.ok) {
-    const body = await resp.json().catch(() => ({}));
-    throw new Error(body.error || `Prospect API ${resp.status}`);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -669,7 +595,7 @@ async function processText(text) {
     // Apply date defaults
     const today = new Date().toISOString().slice(0, 10);
     const data = parsed.data;
-    ['finance','net_worth','dating','habits','sleep'].forEach(cat => {
+    ['finance','net_worth'].forEach(cat => {
       if (parsed.category === cat && !data.date) data.date = today;
     });
     if (parsed.category === 'todos') {
@@ -677,11 +603,7 @@ async function processText(text) {
       data.tags = data.tags || [];
     }
 
-    if (parsed.category === 'prospect') {
-      await saveProspect(data, cfg);
-    } else {
-      await saveToSupabase(parsed.category, data, cfg);
-    }
+    await saveToSupabase(parsed.category, data, cfg);
 
     const summary = summarise(parsed.category, data);
     setState('success', { result: summary });
