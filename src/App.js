@@ -98,6 +98,7 @@ const App = () => {
   const [data, setData] = useState(generateSampleData());
   const [loading, setLoading] = useState(true);
   const [prospects, setProspects] = useState([]);
+  const [wikiCount, setWikiCount] = useState(0);
   const [selectedProspect, setSelectedProspect] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -108,11 +109,21 @@ const App = () => {
   useEffect(() => {
     loadData();
     loadProspects();
+    loadWikiCount();
     loadSpend('7d');
-    const interval = setInterval(() => { loadData(); loadProspects(); loadSpend(spendView); }, 30000);
+    const interval = setInterval(() => { loadData(); loadProspects(); loadWikiCount(); loadSpend(spendView); }, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadWikiCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('wiki_pages')
+        .select('*', { count: 'exact', head: true });
+      if (!error) setWikiCount(count || 0);
+    } catch (e) {}
+  };
 
   const loadProspects = async () => {
     try {
@@ -1055,7 +1066,7 @@ const App = () => {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '20px' }}>
             {/* Vlogs */}
             <div style={{
               background: '#1a1a1a',
@@ -1097,6 +1108,28 @@ const App = () => {
               </div>
               <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
                 prospects
+              </div>
+            </div>
+
+            {/* Wiki pages */}
+            <div style={{
+              background: '#1a1a1a',
+              border: '1px solid #aa88ff33',
+              borderRadius: '12px',
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '40px',
+                fontWeight: '700',
+                color: '#aa88ff',
+                lineHeight: '1'
+              }}>
+                {wikiCount}
+              </div>
+              <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
+                wiki pages
               </div>
             </div>
           </div>
