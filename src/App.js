@@ -190,7 +190,7 @@ const App = () => {
       const { data: rows, error } = await supabase
         .from('dashboard_entries')
         .select('data, created_at')
-        .eq('category', 'finance')
+        .eq('category', 'spending')
         .gte('created_at', since.toISOString());
 
       if (error || !rows) return;
@@ -286,7 +286,7 @@ const App = () => {
       // Parse data if it's a string (bot saves as JSON string)
       const data = typeof entry.data === 'string' ? JSON.parse(entry.data) : entry.data;
       
-      if (entry.category === 'finance') {
+      if (entry.category === 'spending') {
         const date = new Date(data.date || entry.created_at);
         finance.push({
           date: `${date.getDate()}/${date.getMonth() + 1}`,
