@@ -139,6 +139,17 @@ const App = () => {
     }
   };
 
+  const deleteProspect = async (id) => {
+    try {
+      const { error } = await supabase.from('prospects').delete().eq('id', id);
+      if (error) throw error;
+      setSelectedProspect(null);
+      await loadProspects();
+    } catch (err) {
+      console.log('Error deleting prospect:', err);
+    }
+  };
+
   const saveProspectEdit = async () => {
     setSaving(true);
     try {
@@ -1012,28 +1023,42 @@ const App = () => {
                     </div>
                   )}
 
-                  {/* Edit button */}
-                  <button
-                    onClick={() => {
-                      setEditForm({
-                        name: selectedProspect.name,
-                        stage: selectedProspect.stage,
-                        platform: selectedProspect.platform || '',
-                        rating: selectedProspect.rating || '',
-                        notes: selectedProspect.notes || '',
-                      });
-                      setEditMode(true);
-                    }}
-                    style={{
-                      width: '100%', background: 'none', border: '1px solid #333', borderRadius: '10px',
-                      color: '#888', padding: '11px', fontSize: '14px', cursor: 'pointer', marginTop: '8px',
-                      transition: 'border-color 0.2s, color 0.2s',
-                    }}
-                    onMouseEnter={e => { e.target.style.borderColor = '#555'; e.target.style.color = '#ccc'; }}
-                    onMouseLeave={e => { e.target.style.borderColor = '#333'; e.target.style.color = '#888'; }}
-                  >
-                    Edit
-                  </button>
+                  {/* Edit / Delete buttons */}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <button
+                      onClick={() => {
+                        setEditForm({
+                          name: selectedProspect.name,
+                          stage: selectedProspect.stage,
+                          platform: selectedProspect.platform || '',
+                          rating: selectedProspect.rating || '',
+                          notes: selectedProspect.notes || '',
+                        });
+                        setEditMode(true);
+                      }}
+                      style={{
+                        flex: 1, background: 'none', border: '1px solid #333', borderRadius: '10px',
+                        color: '#888', padding: '11px', fontSize: '14px', cursor: 'pointer',
+                        transition: 'border-color 0.2s, color 0.2s',
+                      }}
+                      onMouseEnter={e => { e.target.style.borderColor = '#555'; e.target.style.color = '#ccc'; }}
+                      onMouseLeave={e => { e.target.style.borderColor = '#333'; e.target.style.color = '#888'; }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => { if (window.confirm(`Delete ${selectedProspect.name}? This cannot be undone.`)) deleteProspect(selectedProspect.id); }}
+                      style={{
+                        flex: 1, background: 'none', border: '1px solid #331111', borderRadius: '10px',
+                        color: '#664444', padding: '11px', fontSize: '14px', cursor: 'pointer',
+                        transition: 'border-color 0.2s, color 0.2s',
+                      }}
+                      onMouseEnter={e => { e.target.style.borderColor = '#ff4444'; e.target.style.color = '#ff4444'; }}
+                      onMouseLeave={e => { e.target.style.borderColor = '#331111'; e.target.style.color = '#664444'; }}
+                    >
+                      Delete
+                    </button>
+                  </div>
 
                 </div>
               )}
