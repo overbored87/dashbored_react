@@ -105,6 +105,7 @@ const App = () => {
   const [saving, setSaving] = useState(false);
   const [spendView, setSpendView] = useState('7d');
   const [spendData, setSpendData] = useState({ bars: [], categories: [] });
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -591,7 +592,7 @@ const App = () => {
               </span>
             </div>
             <div className="stat-number" style={{ fontSize: '56px' }}>
-              {data.demoMode ? '•••••' : `$${(() => {
+              {demoMode ? '•••••' : `$${(() => {
                 const nw = data.netWorth;
                 if (!nw || nw.length === 0) return '0';
                 const latest = nw[nw.length - 1];
@@ -602,7 +603,7 @@ const App = () => {
               <div>
                 <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '8px' }}>Savings</span>
                 <span style={{ color: '#00ff88', fontSize: '16px', fontFamily: 'Space Mono, monospace', fontWeight: '700' }}>
-                  {data.demoMode ? '•••••' : `$${(() => {
+                  {demoMode ? '•••••' : `$${(() => {
                     const nw = data.netWorth;
                     if (!nw || nw.length === 0) return '0';
                     return (nw[nw.length - 1].savings || 0).toLocaleString();
@@ -612,7 +613,7 @@ const App = () => {
               <div>
                 <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginRight: '8px' }}>Trading</span>
                 <span style={{ color: '#00ffff', fontSize: '16px', fontFamily: 'Space Mono, monospace', fontWeight: '700' }}>
-                  {data.demoMode ? '•••••' : `$${(() => {
+                  {demoMode ? '•••••' : `$${(() => {
                     const nw = data.netWorth;
                     if (!nw || nw.length === 0) return '0';
                     return (nw[nw.length - 1].trading || 0).toLocaleString();
@@ -625,8 +626,8 @@ const App = () => {
           <ResponsiveContainer width="100%" height={140}>
             <LineChart data={data.netWorth || []}>
               <XAxis dataKey="month" stroke="#444" style={{ fontSize: '11px' }} />
-              <YAxis stroke="#444" style={{ fontSize: '11px' }} tickFormatter={v => data.demoMode ? '•••' : `$${(v/1000).toFixed(0)}k`} />
-              {!data.demoMode && <Tooltip 
+              <YAxis stroke="#444" style={{ fontSize: '11px' }} tickFormatter={v => demoMode ? '•••' : `$${(v/1000).toFixed(0)}k`} />
+              {!demoMode && <Tooltip 
                 contentStyle={{ background: '#0f0f0f', border: '1px solid #333', borderRadius: '8px', fontSize: '12px' }}
                 formatter={(value) => [`$${value.toLocaleString()}`, '']}
               />}
@@ -785,7 +786,7 @@ const App = () => {
 
 
         {/* Dating CRM Widget */}
-        {!data.demoMode && <div className="widget" style={{
+        {!demoMode && <div className="widget" style={{
           background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
           border: '1px solid #333',
           borderRadius: '16px',
@@ -1138,10 +1139,34 @@ const App = () => {
 
       </div>
 
+      {/* Demo mode toggle */}
+      <div style={{ maxWidth: '1100px', margin: '40px auto 0', textAlign: 'center' }}>
+        <button
+          onClick={() => setDemoMode(d => !d)}
+          style={{
+            background: demoMode ? '#2a1a2a' : 'transparent',
+            border: `1px solid ${demoMode ? '#aa88ff' : '#333'}`,
+            color: demoMode ? '#aa88ff' : '#555',
+            fontFamily: 'Space Mono, monospace',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            padding: '8px 20px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => { if (!demoMode) { e.target.style.borderColor = '#555'; e.target.style.color = '#888'; }}}
+          onMouseLeave={e => { if (!demoMode) { e.target.style.borderColor = '#333'; e.target.style.color = '#555'; }}}
+        >
+          {demoMode ? '🎭 Demo Mode ON' : '🎭 Demo Mode'}
+        </button>
+      </div>
+
       {/* Footer */}
       <div style={{
         maxWidth: '1100px',
-        margin: '60px auto 0',
+        margin: '40px auto 0',
         textAlign: 'center',
         color: '#444',
         fontSize: '13px',
