@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
+import SentinelWidget from './SentinelWidget';
 
 
 
@@ -1161,6 +1162,9 @@ const App = () => {
           </div>
         </div>
 
+
+        {/* Sentinel / Infra Widget */}
+        <SentinelWidget supabase={supabase} />
 
       </div>
 
