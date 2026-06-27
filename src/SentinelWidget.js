@@ -11,7 +11,6 @@ function timeAgo(iso) {
 const SentinelWidget = ({ supabase }) => {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [hasRenderNote, setHasRenderNote] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -26,9 +25,6 @@ const SentinelWidget = ({ supabase }) => {
         if (!error && data) {
           const parsed = typeof data.data === 'string' ? JSON.parse(data.data) : data.data;
           setSnapshot({ captured_at: data.created_at, services: parsed.services || [] });
-          setHasRenderNote(
-            (parsed.services || []).some(s => s.cost_note === 'render_total_divided')
-          );
         }
       } catch (e) {
         console.log('SentinelWidget load error:', e);
@@ -40,7 +36,6 @@ const SentinelWidget = ({ supabase }) => {
   }, [supabase]);
 
   const services = snapshot?.services || [];
-  const total = services.reduce((sum, s) => sum + (s.mtd_cost_usd || 0), 0);
 
   const cellStyle = {
     padding: '10px 12px',
@@ -85,19 +80,19 @@ const SentinelWidget = ({ supabase }) => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              {['Service', 'Platform', 'Status', 'MTD Cost'].map(h => (
-                <th key={h} style={{ ...headStyle, textAlign: h === 'MTD Cost' ? 'right' : 'left' }}>{h}</th>
+              {['Service', 'Platform', 'Status'].map(h => (
+                <th key={h} style={headStyle}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} style={{ ...cellStyle, color: '#444', textAlign: 'center' }}>Loading…</td>
+                <td colSpan={3} style={{ ...cellStyle, color: '#444', textAlign: 'center' }}>Loading…</td>
               </tr>
             ) : services.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ ...cellStyle, color: '#444', textAlign: 'center' }}>No snapshot yet</td>
+                <td colSpan={3} style={{ ...cellStyle, color: '#444', textAlign: 'center' }}>No snapshot yet</td>
               </tr>
             ) : (
               services.map((svc, i) => (
@@ -105,34 +100,13 @@ const SentinelWidget = ({ supabase }) => {
                   <td style={cellStyle}>{svc.name}</td>
                   <td style={{ ...cellStyle, color: '#666' }}>{svc.platform}</td>
                   <td style={cellStyle}>{svc.status === 'healthy' ? '🟢' : '🔴'}</td>
-                  <td style={{ ...cellStyle, textAlign: 'right', color: '#00ccff' }}>
-                    ${(svc.mtd_cost_usd || 0).toFixed(2)}
-                  </td>
                 </tr>
               ))
-            )}
-
-            {/* Total row */}
-            {services.length > 0 && (
-              <tr>
-                <td colSpan={3} style={{ ...cellStyle, color: '#555', borderBottom: 'none', paddingTop: '14px' }}>
-                  Total MTD
-                </td>
-                <td style={{ ...cellStyle, textAlign: 'right', color: '#fff', fontWeight: '700', borderBottom: 'none', paddingTop: '14px' }}>
-                  ${total.toFixed(2)}
-                </td>
-              </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Render cost footnote */}
-      {hasRenderNote && (
-        <div style={{ marginTop: '14px', color: '#444', fontSize: '11px', fontFamily: 'Space Mono, monospace' }}>
-          * Render costs are estimated (total divided evenly)
-        </div>
-      )}
     </div>
   );
 };
