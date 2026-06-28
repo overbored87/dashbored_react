@@ -106,6 +106,8 @@ const App = () => {
   const [saving, setSaving] = useState(false);
   const [spendView, setSpendView] = useState('7d');
   const [spendData, setSpendData] = useState({ bars: [], categories: [] });
+  const [spendFilter, setSpendFilter] = useState(null);
+  const [spendRows, setSpendRows] = useState([]);
   const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
@@ -176,21 +178,16 @@ const App = () => {
     }
   };
 
-  const loadSpend = async (view) => {
+  const getViewConfig = (view) => {
     const now = new Date();
     let since, groupFn, labelFn;
-
     if (view === '7d') {
       since = new Date(now); since.setDate(now.getDate() - 6); since.setHours(0,0,0,0);
       groupFn = (d) => d.toISOString().slice(0, 10);
       labelFn = (key) => { const d = new Date(key); return `${d.getDate()}/${d.getMonth()+1}`; };
     } else if (view === '8w') {
       since = new Date(now); since.setDate(now.getDate() - 55); since.setHours(0,0,0,0);
-      groupFn = (d) => {
-        const startOfWeek = new Date(d);
-        startOfWeek.setDate(d.getDate() - d.getDay());
-        return startOfWeek.toISOString().slice(0, 10);
-      };
+      groupFn = (d) => { const s = new Date(d); s.setDate(d.getDate() - d.getDay()); return s.toISOString().slice(0, 10); };
       labelFn = (key) => { const d = new Date(key); return `${d.getDate()}/${d.getMonth()+1}`; };
     } else {
       since = new Date(now); since.setMonth(now.getMonth() - 5); since.setDate(1); since.setHours(0,0,0,0);
@@ -198,58 +195,63 @@ const App = () => {
       const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       labelFn = (key) => MONTHS[parseInt(key.split('-')[1]) - 1];
     }
+    return { since, groupFn, labelFn, now };
+  };
 
+  const computeSpendDisplay = (rows, view, filter) => {
+    const { groupFn, labelFn, now } = getViewConfig(view);
+    const barMap = {};
+    const catMap = {};
+    (rows || []).forEach(row => {
+      const d = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+      const amount = Math.abs(d.amount || 0);
+      if (!amount) return;
+      const cat = (d.subcategory || d.description || 'other').toLowerCase();
+      if (filter && cat !== filter) return;
+      const date = new Date(d.date || row.created_at);
+      const key = groupFn(date);
+      barMap[key] = (barMap[key] || 0) + amount;
+      catMap[cat] = (catMap[cat] || 0) + amount;
+    });
+    const bars = [];
+    if (view === '7d') {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now); d.setDate(now.getDate() - i); d.setHours(0,0,0,0);
+        const key = groupFn(d);
+        bars.push({ label: labelFn(new Date(key)), amount: barMap[key] || 0 });
+      }
+    } else if (view === '8w') {
+      for (let i = 7; i >= 0; i--) {
+        const d = new Date(now); d.setDate(now.getDate() - i * 7);
+        const key = groupFn(d);
+        if (!bars.find(b => b.key === key)) bars.push({ key, label: labelFn(new Date(key)), amount: barMap[key] || 0 });
+      }
+    } else {
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now); d.setMonth(now.getMonth() - i); d.setDate(1);
+        const key = groupFn(d);
+        bars.push({ label: labelFn(key), amount: barMap[key] || 0 });
+      }
+    }
+    const categories = Object.entries(catMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, total]) => ({ name, total }));
+    setSpendData({ bars, categories });
+  };
+
+  const loadSpend = async (view, filter) => {
+    const resolvedFilter = filter !== undefined ? filter : spendFilter;
+    const { since } = getViewConfig(view);
     try {
       const { data: rows, error } = await supabase
         .from('dashboard_entries')
         .select('data, created_at')
         .eq('category', 'spending')
         .gte('created_at', since.toISOString());
-
       if (error || !rows) return;
-
-      const barMap = {};
-      const catMap = {};
-
-      rows.forEach(row => {
-        const d = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
-        const amount = Math.abs(d.amount || 0);
-        if (!amount) return;
-        const date = new Date(d.date || row.created_at);
-        const key = groupFn(date);
-        barMap[key] = (barMap[key] || 0) + amount;
-        const cat = (d.subcategory || d.description || 'other').toLowerCase();
-        catMap[cat] = (catMap[cat] || 0) + amount;
-      });
-
-      // Fill in all expected buckets with 0 if missing
-      const bars = [];
-      if (view === '7d') {
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date(now); d.setDate(now.getDate() - i); d.setHours(0,0,0,0);
-          const key = groupFn(d);
-          bars.push({ label: labelFn(new Date(key)), amount: barMap[key] || 0 });
-        }
-      } else if (view === '8w') {
-        for (let i = 7; i >= 0; i--) {
-          const d = new Date(now); d.setDate(now.getDate() - i * 7);
-          const key = groupFn(d);
-          if (!bars.find(b => b.key === key)) bars.push({ key, label: labelFn(new Date(key)), amount: barMap[key] || 0 });
-        }
-      } else {
-        for (let i = 5; i >= 0; i--) {
-          const d = new Date(now); d.setMonth(now.getMonth() - i); d.setDate(1);
-          const key = groupFn(d);
-          bars.push({ label: labelFn(key), amount: barMap[key] || 0 });
-        }
-      }
-
-      const categories = Object.entries(catMap)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, total]) => ({ name, total }));
-
-      setSpendData({ bars, categories });
+      setSpendRows(rows);
+      computeSpendDisplay(rows, view, resolvedFilter);
     } catch (err) {
       console.log('Error loading spend:', err);
     }
@@ -545,7 +547,7 @@ const App = () => {
           letterSpacing: '-1px',
           lineHeight: '1.2'
         }}>
-          Dashbored v1.0
+          Dashbored v2.0
         </h1>
         <p style={{ 
           color: '#666',
@@ -662,7 +664,7 @@ const App = () => {
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {[['7d','7 Days'],['8w','8 Weeks'],['6m','6 Months']].map(([key, label]) => (
-                <button key={key} onClick={() => { setSpendView(key); loadSpend(key); }} style={{
+                <button key={key} onClick={() => { setSpendView(key); setSpendFilter(null); loadSpend(key, null); }} style={{
                   background: spendView === key ? '#ff6600' : 'transparent',
                   border: `1px solid ${spendView === key ? '#ff6600' : '#333'}`,
                   color: spendView === key ? '#000' : '#666',
@@ -705,16 +707,30 @@ const App = () => {
           {/* Top categories */}
           {spendData.categories.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ fontSize: '11px', color: '#555', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Top Categories</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <div style={{ fontSize: '11px', color: '#555', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px' }}>Top Categories</div>
+                {spendFilter && (
+                  <div style={{ fontSize: '10px', color: '#ff6600', fontFamily: 'Space Mono, monospace' }}>
+                    filtered · tap again to clear
+                  </div>
+                )}
+              </div>
               {spendData.categories.map((cat, i) => {
                 const maxCat = spendData.categories[0].total;
+                const isActive = spendFilter === cat.name;
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '90px', fontSize: '12px', color: '#888', fontFamily: 'Space Mono, monospace', flexShrink: 0 }}>{cat.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</div>
+                  <div key={i}
+                    onClick={() => {
+                      const newFilter = isActive ? null : cat.name;
+                      setSpendFilter(newFilter);
+                      computeSpendDisplay(spendRows, spendView, newFilter);
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '4px 6px', borderRadius: '6px', background: isActive ? '#ff660011' : 'transparent', border: isActive ? '1px solid #ff660033' : '1px solid transparent', transition: 'background 0.15s' }}>
+                    <div style={{ width: '90px', fontSize: '12px', color: isActive ? '#ff6600' : '#888', fontFamily: 'Space Mono, monospace', flexShrink: 0 }}>{cat.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</div>
                     <div style={{ flex: 1, background: '#1a1a1a', borderRadius: '4px', height: '6px' }}>
-                      <div style={{ width: `${(cat.total / maxCat) * 100}%`, height: '100%', background: '#ff6600', borderRadius: '4px' }} />
+                      <div style={{ width: `${(cat.total / maxCat) * 100}%`, height: '100%', background: isActive ? '#ff6600' : '#ff660066', borderRadius: '4px', transition: 'background 0.15s' }} />
                     </div>
-                    <div style={{ width: '60px', textAlign: 'right', fontSize: '12px', color: '#ff6600', fontFamily: 'Space Mono, monospace' }}>${cat.total.toFixed(0)}</div>
+                    <div style={{ width: '60px', textAlign: 'right', fontSize: '12px', color: isActive ? '#ff6600' : '#ff660088', fontFamily: 'Space Mono, monospace' }}>${cat.total.toFixed(0)}</div>
                   </div>
                 );
               })}
