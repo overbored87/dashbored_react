@@ -235,7 +235,7 @@ const App = () => {
     }
     const categories = Object.entries(catMap)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
+      .slice(0, 7)
       .map(([name, total]) => ({ name, total }));
     setSpendData({ bars, categories });
   };
