@@ -11,6 +11,13 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5saWpycGZ1emN4ZnRiY3V3enRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MjcwODQsImV4cCI6MjA4NjUwMzA4NH0.SbZFfPwBLPSBK0DkWs00IGFtrnPHtvKXQefg43fL6Dg'  // Your anon/public key
 );
 
+const BUY_IN_STAGES = [
+  { key: 'cold',         label: 'Cold',          color: '#1a2a3a' },
+  { key: 'hook point',   label: 'Hook Point',    color: '#1a3a2a' },
+  { key: 'making plans', label: 'Making Plans',  color: '#2a1a3a' },
+];
+const buyInColor = (stage) => BUY_IN_STAGES.find(s => s.key === stage)?.color || '#111';
+
 const STAGES = [
   { key: 'texting',    label: 'Texting',    color: '#ff0088' },
   { key: 'first_date', label: 'First Date', color: '#ff6600' },
@@ -161,6 +168,7 @@ const App = () => {
         .update({
           name: editForm.name,
           stage: editForm.stage,
+          buy_in_stage: editForm.buy_in_stage || 'cold',
           platform: editForm.platform || null,
           rating: editForm.rating ? parseFloat(editForm.rating) : null,
           notes: editForm.notes || null,
@@ -858,7 +866,7 @@ const App = () => {
                     <div key={p.id}
                       onClick={() => setSelectedProspect(p)}
                       style={{
-                        background: '#111',
+                        background: buyInColor(p.buy_in_stage),
                         border: `1px solid ${stage.color}22`,
                         borderRadius: '12px',
                         padding: '14px',
@@ -967,6 +975,28 @@ const App = () => {
                     </select>
                   </div>
                   <div style={{ marginBottom: '14px' }}>
+                    <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Buy-in</div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {BUY_IN_STAGES.map(s => (
+                        <button
+                          key={s.key}
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, buy_in_stage: s.key }))}
+                          style={{
+                            flex: 1, padding: '8px 4px', borderRadius: '8px', fontSize: '11px',
+                            fontFamily: 'Space Mono, monospace', cursor: 'pointer',
+                            border: editForm.buy_in_stage === s.key ? '1px solid #888' : '1px solid #333',
+                            background: editForm.buy_in_stage === s.key ? s.color : '#111',
+                            color: editForm.buy_in_stage === s.key ? '#ccc' : '#555',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: '14px' }}>
                     <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Notes <span style={{ color: '#444', textTransform: 'none', letterSpacing: 0 }}>— preferences, context</span></div>
                     <textarea
                       value={editForm.notes || ''}
@@ -1047,6 +1077,7 @@ const App = () => {
                         setEditForm({
                           name: selectedProspect.name,
                           stage: selectedProspect.stage,
+                          buy_in_stage: selectedProspect.buy_in_stage || 'cold',
                           platform: selectedProspect.platform || '',
                           rating: selectedProspect.rating || '',
                           notes: selectedProspect.notes || '',
