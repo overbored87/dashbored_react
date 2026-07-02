@@ -113,6 +113,7 @@ const App = () => {
   const [selectedProspect, setSelectedProspect] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [mergeMode, setMergeMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [spendView, setSpendView] = useState('7d');
   const [spendData, setSpendData] = useState({ bars: [], categories: [] });
@@ -154,6 +155,49 @@ const App = () => {
       if (!error && rows) setProspects(rows);
     } catch (err) {
       console.log('Error loading prospects:', err);
+    }
+  };
+
+  const mergeProspects = async (otherId) => {
+    const other = prospects.find(p => p.id === otherId);
+    if (!other || !selectedProspect) return;
+    setSaving(true);
+    try {
+      const [older, newer] = new Date(selectedProspect.created_at) <= new Date(other.created_at)
+        ? [selectedProspect, other]
+        : [other, selectedProspect];
+
+      const mergedNotes = [older.notes, newer.notes].filter(Boolean).join('\n\n---\n\n') || null;
+      const mergedLogs = [...(older.logs || []), ...(newer.logs || [])]
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      const { error: updateError } = await supabase
+        .from('prospects')
+        .update({
+          name: newer.name,
+          stage: newer.stage,
+          buy_in_stage: newer.buy_in_stage,
+          platform: newer.platform,
+          rating: newer.rating,
+          archive_reason: newer.archive_reason,
+          notes: mergedNotes,
+          logs: mergedLogs,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', newer.id);
+      if (updateError) throw updateError;
+
+      const { error: deleteError } = await supabase.from('prospects').delete().eq('id', older.id);
+      if (deleteError) throw deleteError;
+
+      setSelectedProspect(null);
+      setMergeMode(false);
+      await loadProspects();
+    } catch (err) {
+      console.error('Merge failed:', err);
+      alert('Merge failed: ' + err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -913,7 +957,7 @@ const App = () => {
 
         {/* Prospect modal */}
         {selectedProspect && (
-          <div onClick={() => { setSelectedProspect(null); setEditMode(false); }} style={{
+          <div onClick={() => { setSelectedProspect(null); setEditMode(false); setMergeMode(false); }} style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
           }}>
@@ -939,7 +983,7 @@ const App = () => {
                     {selectedProspect.platform && ` · ${selectedProspect.platform}`}
                   </div>
                 </div>
-                <button onClick={() => { setSelectedProspect(null); setEditMode(false); }} style={{
+                <button onClick={() => { setSelectedProspect(null); setEditMode(false); setMergeMode(false); }} style={{
                   marginLeft: 'auto', background: 'none', border: 'none', color: '#555',
                   fontSize: '22px', cursor: 'pointer', padding: '4px'
                 }}>✕</button>
@@ -1051,6 +1095,48 @@ const App = () => {
                     </button>
                   </div>
                 </div>
+              ) : mergeMode ? (
+                /* Merge picker */
+                <div>
+                  <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
+                    Merge {selectedProspect.name} into…
+                  </div>
+                  <div style={{ color: '#444', fontSize: '12px', marginBottom: '16px', lineHeight: '1.5' }}>
+                    Notes and activity combine. Other fields use whichever card was created more recently. This cannot be undone.
+                  </div>
+                  {prospects.filter(p => p.id !== selectedProspect.id).length === 0 ? (
+                    <div style={{ color: '#444', fontSize: '13px', fontStyle: 'italic', marginBottom: '20px' }}>No other active prospects to merge with.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                      {prospects.filter(p => p.id !== selectedProspect.id).map(p => (
+                        <button
+                          key={p.id}
+                          disabled={saving}
+                          onClick={() => {
+                            if (window.confirm(`Merge ${selectedProspect.name} and ${p.name}? This cannot be undone.`)) mergeProspects(p.id);
+                          }}
+                          style={{
+                            width: '100%', textAlign: 'left', background: '#111', border: '1px solid #333',
+                            borderRadius: '10px', padding: '11px 14px', color: '#ccc', fontSize: '14px',
+                            cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
+                            transition: 'border-color 0.2s',
+                          }}
+                          onMouseEnter={e => { if (!saving) e.currentTarget.style.borderColor = '#555'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = '#333'; }}
+                        >
+                          {p.name}
+                          <span style={{ color: '#555', fontSize: '12px' }}> · {STAGES.find(s => s.key === p.stage)?.label || p.stage}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={() => setMergeMode(false)} disabled={saving} style={{
+                    width: '100%', background: 'none', color: '#888', border: '1px solid #333', borderRadius: '10px',
+                    padding: '12px', fontSize: '14px', cursor: saving ? 'default' : 'pointer',
+                  }}>
+                    Cancel
+                  </button>
+                </div>
               ) : (
                 /* View mode */
                 <div>
@@ -1104,6 +1190,18 @@ const App = () => {
                       onMouseLeave={e => { e.target.style.borderColor = '#333'; e.target.style.color = '#888'; }}
                     >
                       Edit
+                    </button>
+                    <button
+                      onClick={() => setMergeMode(true)}
+                      style={{
+                        flex: 1, background: 'none', border: '1px solid #333', borderRadius: '10px',
+                        color: '#888', padding: '11px', fontSize: '14px', cursor: 'pointer',
+                        transition: 'border-color 0.2s, color 0.2s',
+                      }}
+                      onMouseEnter={e => { e.target.style.borderColor = '#aa88ff'; e.target.style.color = '#aa88ff'; }}
+                      onMouseLeave={e => { e.target.style.borderColor = '#333'; e.target.style.color = '#888'; }}
+                    >
+                      Merge
                     </button>
                     <button
                       onClick={() => { if (window.confirm(`Delete ${selectedProspect.name}? This cannot be undone.`)) deleteProspect(selectedProspect.id); }}
