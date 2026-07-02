@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 import SentinelWidget from './SentinelWidget';
@@ -10,6 +10,9 @@ const supabase = createClient(
   'https://nlijrpfuzcxftbcuwzte.supabase.co',  // e.g., 'https://xxxxx.supabase.co'
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5saWpycGZ1emN4ZnRiY3V3enRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MjcwODQsImV4cCI6MjA4NjUwMzA4NH0.SbZFfPwBLPSBK0DkWs00IGFtrnPHtvKXQefg43fL6Dg'  // Your anon/public key
 );
+
+// Only show entries created by these Telegram accounts
+const ALLOWED_USER_IDS = ['268934826', '7738099781'];
 
 const BUY_IN_STAGES = [
   { key: 'cold',         label: 'Cold',          color: '#1a2a3a' },
@@ -116,13 +119,17 @@ const App = () => {
   const [spendFilter, setSpendFilter] = useState(null);
   const [spendRows, setSpendRows] = useState([]);
   const [demoMode, setDemoMode] = useState(false);
+  // Refs mirror spendView/spendFilter so the 30s interval sees current values,
+  // not the ones captured on first render
+  const spendViewRef = useRef('7d');
+  const spendFilterRef = useRef(null);
 
   useEffect(() => {
     loadData();
     loadProspects();
     loadWikiCount();
-    loadSpend('7d');
-    const interval = setInterval(() => { loadData(); loadProspects(); loadWikiCount(); loadSpend(spendView); }, 30000);
+    loadSpend('7d', null);
+    const interval = setInterval(() => { loadData(); loadProspects(); loadWikiCount(); loadSpend(spendViewRef.current, spendFilterRef.current); }, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -142,6 +149,7 @@ const App = () => {
         .from('prospects')
         .select('*')
         .eq('archived', false)
+        .in('user_id', ALLOWED_USER_IDS)
         .order('updated_at', { ascending: false });
       if (!error && rows) setProspects(rows);
     } catch (err) {
@@ -256,6 +264,7 @@ const App = () => {
         .from('dashboard_entries')
         .select('data, created_at')
         .eq('category', 'spending')
+        .in('user_id', ALLOWED_USER_IDS)
         .gte('created_at', since.toISOString());
       if (error || !rows) return;
       setSpendRows(rows);
@@ -273,6 +282,7 @@ const App = () => {
       const { data: entries, error } = await supabase
         .from('dashboard_entries')
         .select('*')
+        .in('user_id', ALLOWED_USER_IDS)
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -672,7 +682,7 @@ const App = () => {
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {[['7d','7 Days'],['8w','8 Weeks'],['6m','6 Months']].map(([key, label]) => (
-                <button key={key} onClick={() => { setSpendView(key); setSpendFilter(null); loadSpend(key, null); }} style={{
+                <button key={key} onClick={() => { setSpendView(key); setSpendFilter(null); spendViewRef.current = key; spendFilterRef.current = null; loadSpend(key, null); }} style={{
                   background: spendView === key ? '#ff6600' : 'transparent',
                   border: `1px solid ${spendView === key ? '#ff6600' : '#333'}`,
                   color: spendView === key ? '#000' : '#666',
@@ -731,6 +741,7 @@ const App = () => {
                     onClick={() => {
                       const newFilter = isActive ? null : cat.name;
                       setSpendFilter(newFilter);
+                      spendFilterRef.current = newFilter;
                       computeSpendDisplay(spendRows, spendView, newFilter);
                     }}
                     style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '4px 6px', borderRadius: '6px', background: isActive ? '#ff660011' : 'transparent', border: isActive ? '1px solid #ff660033' : '1px solid transparent', transition: 'background 0.15s' }}>
