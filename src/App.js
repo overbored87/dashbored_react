@@ -110,6 +110,7 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [prospects, setProspects] = useState([]);
   const [wikiCount, setWikiCount] = useState(0);
+  const [videosCount, setVideosCount] = useState(0);
   const [selectedProspect, setSelectedProspect] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -129,8 +130,9 @@ const App = () => {
     loadData();
     loadProspects();
     loadWikiCount();
+    loadVideosCount();
     loadSpend('7d', null);
-    const interval = setInterval(() => { loadData(); loadProspects(); loadWikiCount(); loadSpend(spendViewRef.current, spendFilterRef.current); }, 30000);
+    const interval = setInterval(() => { loadData(); loadProspects(); loadWikiCount(); loadVideosCount(); loadSpend(spendViewRef.current, spendFilterRef.current); }, 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -141,6 +143,21 @@ const App = () => {
         .from('wiki_pages')
         .select('*', { count: 'exact', head: true });
       if (!error) setWikiCount(count || 0);
+    } catch (e) {}
+  };
+
+  // Videos count = Random Walk + Watchtower episodes, counted from the numbered
+  // episode-table rows on the "Random Walk Podcast" wiki page.
+  const loadVideosCount = async () => {
+    try {
+      const { data: rows, error } = await supabase
+        .from('wiki_pages')
+        .select('content')
+        .ilike('title', '%random%walk%')
+        .limit(1);
+      if (error || !rows || !rows[0]) return;
+      const matches = rows[0].content.match(/^\|\s*\d+\s*\|/gm);
+      setVideosCount(matches ? matches.length : 0);
     } catch (e) {}
   };
 
@@ -1250,7 +1267,7 @@ const App = () => {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '20px' }}>
-            {/* Vlogs */}
+            {/* Videos */}
             <div style={{
               background: '#1a1a1a',
               border: '1px solid #aa88ff33',
@@ -1265,10 +1282,10 @@ const App = () => {
                 color: '#aa88ff',
                 lineHeight: '1'
               }}>
-                {data.habits?.vlogs || 0}
+                {videosCount}
               </div>
               <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
-                vlogs shot
+                videos
               </div>
             </div>
 
