@@ -121,10 +121,26 @@ const App = () => {
   const [spendFilter, setSpendFilter] = useState(null);
   const [spendRows, setSpendRows] = useState([]);
   const [demoMode, setDemoMode] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   // Refs mirror spendView/spendFilter so the 30s interval sees current values,
   // not the ones captured on first render
   const spendViewRef = useRef('7d');
   const spendFilterRef = useRef(null);
+
+  const refreshAll = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadData(),
+        loadProspects(),
+        loadWikiCount(),
+        loadVideosCount(),
+        loadSpend(spendViewRef.current, spendFilterRef.current),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -601,41 +617,91 @@ const App = () => {
           border-color: #88ff00;
           background: #88ff0022;
         }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        .refresh-btn {
+          background: #1a1a1a;
+          border: 1px solid #333;
+          border-radius: 8px;
+          color: #888;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+        }
+
+        .refresh-btn:hover {
+          border-color: #00ff8866;
+          color: #00ff88;
+        }
+
+        .refresh-btn:disabled {
+          cursor: default;
+        }
+
+        .refresh-btn.spinning svg {
+          animation: spin 0.8s linear infinite;
+        }
       `}</style>
 
       {/* Header */}
       <div style={{ maxWidth: '1100px', margin: '0 auto 60px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
-          <span className="live-indicator"></span>
-          <span style={{ 
-            color: '#00ff88', 
-            fontFamily: 'Space Mono, monospace',
-            fontSize: '14px',
-            textTransform: 'uppercase',
-            letterSpacing: '2px'
-          }}>
-            LIVE DASHBOARD
-          </span>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+              <span className="live-indicator"></span>
+              <span style={{
+                color: '#00ff88',
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '14px',
+                textTransform: 'uppercase',
+                letterSpacing: '2px'
+              }}>
+                LIVE DASHBOARD
+              </span>
+            </div>
+            <h1 style={{
+              fontFamily: 'Syne, sans-serif',
+              fontSize: '32px',
+              fontWeight: '800',
+              color: '#ffffff',
+              margin: '0 0 8px 0',
+              letterSpacing: '-1px',
+              lineHeight: '1.2'
+            }}>
+              Dashbored v2.0
+            </h1>
+            <p style={{
+              color: '#666',
+              fontFamily: 'Space Mono, monospace',
+              fontSize: '14px',
+              margin: 0
+            }}>
+              Last synced: {new Date().toLocaleTimeString()} via Telegram Bot
+            </p>
+          </div>
+          <button
+            className={`refresh-btn${refreshing ? ' spinning' : ''}`}
+            onClick={refreshAll}
+            disabled={refreshing}
+            title="Refresh dashboard"
+            aria-label="Refresh dashboard"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 4v6h-6" />
+              <path d="M1 20v-6h6" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </button>
         </div>
-        <h1 style={{ 
-          fontFamily: 'Syne, sans-serif',
-          fontSize: '32px',
-          fontWeight: '800',
-          color: '#ffffff',
-          margin: '0 0 8px 0',
-          letterSpacing: '-1px',
-          lineHeight: '1.2'
-        }}>
-          Dashbored v2.0
-        </h1>
-        <p style={{ 
-          color: '#666',
-          fontFamily: 'Space Mono, monospace',
-          fontSize: '14px',
-          margin: 0
-        }}>
-          Last synced: {new Date().toLocaleTimeString()} via Telegram Bot
-        </p>
       </div>
 
       {/* Widgets Grid */}
