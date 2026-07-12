@@ -214,7 +214,7 @@ function renderModal(p, editMode) {
       </div>
       <label class="edit-label">Stage</label>
       <select id="e-stage" class="edit-input">
-        ${['texting','first_date','seeing','back_burner'].map(s => `<option value="${s}" ${p.stage===s?'selected':''}>${s}</option>`).join('')}
+        ${['opened','texting','first_date','seeing','back_burner'].map(s => `<option value="${s}" ${p.stage===s?'selected':''}>${s}</option>`).join('')}
       </select>
       <label class="edit-label">Platform</label>
       <input id="e-platform" class="edit-input" value="${p.platform || ''}">
