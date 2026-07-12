@@ -22,6 +22,7 @@ const BUY_IN_STAGES = [
 const buyInColor = (stage) => BUY_IN_STAGES.find(s => s.key === stage)?.color || '#111';
 
 const STAGES = [
+  { key: 'opened',     label: 'Opened',     color: '#8866ff' },
   { key: 'texting',    label: 'Texting',    color: '#ff0088' },
   { key: 'first_date', label: 'First Date', color: '#ff6600' },
   { key: 'seeing',     label: 'Seeing',     color: '#00ff88' },
