@@ -8,7 +8,7 @@ function timeAgo(iso) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-const SentinelWidget = ({ supabase }) => {
+const SentinelWidget = ({ supabase, refreshKey = 0 }) => {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +33,7 @@ const SentinelWidget = ({ supabase }) => {
       }
     };
     load();
-  }, [supabase]);
+  }, [supabase, refreshKey]);
 
   const services = snapshot?.services || [];
 

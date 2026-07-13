@@ -122,33 +122,51 @@ const App = () => {
   const [spendRows, setSpendRows] = useState([]);
   const [demoMode, setDemoMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastSynced, setLastSynced] = useState(null);
+  const [sentinelRefreshKey, setSentinelRefreshKey] = useState(0);
   // Refs mirror spendView/spendFilter so the 30s interval sees current values,
   // not the ones captured on first render
   const spendViewRef = useRef('7d');
   const spendFilterRef = useRef(null);
 
+  const mergeCandidates = selectedProspect
+    ? prospects.filter(p => p.id !== selectedProspect.id)
+    : [];
+
+  const closeProspectModal = () => {
+    setSelectedProspect(null);
+    setEditMode(false);
+    setMergeMode(false);
+  };
+
+  // Single shared loader list — mount, the 30s interval, and the refresh
+  // button all go through here so refresh paths can't drift apart.
+  // loadVideosCount is deliberately excluded: the episode count changes
+  // rarely, so it only loads on mount and manual refresh.
+  const loadAll = async () => {
+    await Promise.all([
+      loadData(),
+      loadProspects(),
+      loadWikiCount(),
+      loadSpend(spendViewRef.current, spendFilterRef.current),
+    ]);
+    setLastSynced(new Date());
+  };
+
   const refreshAll = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        loadData(),
-        loadProspects(),
-        loadWikiCount(),
-        loadVideosCount(),
-        loadSpend(spendViewRef.current, spendFilterRef.current),
-      ]);
+      await Promise.all([loadAll(), loadVideosCount()]);
+      setSentinelRefreshKey(k => k + 1);
     } finally {
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-    loadProspects();
-    loadWikiCount();
+    loadAll();
     loadVideosCount();
-    loadSpend('7d', null);
-    const interval = setInterval(() => { loadData(); loadProspects(); loadWikiCount(); loadVideosCount(); loadSpend(spendViewRef.current, spendFilterRef.current); }, 30000);
+    const interval = setInterval(() => loadAll(), 30000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -170,9 +188,10 @@ const App = () => {
         .from('wiki_pages')
         .select('content')
         .ilike('title', '%random%walk%')
+        .order('updated_at', { ascending: false })
         .limit(1);
       if (error || !rows || !rows[0]) return;
-      const matches = rows[0].content.match(/^\|\s*\d+\s*\|/gm);
+      const matches = (rows[0].content || '').match(/^\|\s*\d+\s*\|/gm);
       setVideosCount(matches ? matches.length : 0);
     } catch (e) {}
   };
@@ -200,19 +219,28 @@ const App = () => {
         ? [selectedProspect, other]
         : [other, selectedProspect];
 
-      const mergedNotes = [older.notes, newer.notes].filter(Boolean).join('\n\n---\n\n') || null;
-      const mergedLogs = [...(older.logs || []), ...(newer.logs || [])]
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
+      // Retry-safe additive merge: if a previous attempt already copied older's
+      // notes/logs into newer (update succeeded but delete failed), don't
+      // duplicate them when the user retries.
+      const mergedNotes = newer.notes && older.notes && newer.notes.includes(older.notes)
+        ? newer.notes
+        : [older.notes, newer.notes].filter(Boolean).join('\n\n---\n\n') || null;
+      const seenLogs = new Set((newer.logs || []).map(l => `${l.date}|${l.text}`));
+      const mergedLogs = [
+        ...(newer.logs || []),
+        ...(older.logs || []).filter(l => !seenLogs.has(`${l.date}|${l.text}`)),
+      ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
+      // Newer card's fields win, but its empty fields never wipe real data
       const { error: updateError } = await supabase
         .from('prospects')
         .update({
-          name: newer.name,
-          stage: newer.stage,
-          buy_in_stage: newer.buy_in_stage,
-          platform: newer.platform,
-          rating: newer.rating,
-          archive_reason: newer.archive_reason,
+          name: newer.name ?? older.name,
+          stage: newer.stage ?? older.stage,
+          buy_in_stage: newer.buy_in_stage ?? older.buy_in_stage,
+          platform: newer.platform ?? older.platform,
+          rating: newer.rating ?? older.rating,
+          archive_reason: newer.archive_reason ?? older.archive_reason,
           notes: mergedNotes,
           logs: mergedLogs,
           updated_at: new Date().toISOString(),
@@ -685,7 +713,7 @@ const App = () => {
               fontSize: '14px',
               margin: 0
             }}>
-              Last synced: {new Date().toLocaleTimeString()} via Telegram Bot
+              Last synced: {lastSynced ? lastSynced.toLocaleTimeString() : '—'} via Telegram Bot
             </p>
           </div>
           <button
@@ -1040,7 +1068,7 @@ const App = () => {
 
         {/* Prospect modal */}
         {selectedProspect && (
-          <div onClick={() => { setSelectedProspect(null); setEditMode(false); setMergeMode(false); }} style={{
+          <div onClick={closeProspectModal} style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
           }}>
@@ -1066,7 +1094,7 @@ const App = () => {
                     {selectedProspect.platform && ` · ${selectedProspect.platform}`}
                   </div>
                 </div>
-                <button onClick={() => { setSelectedProspect(null); setEditMode(false); setMergeMode(false); }} style={{
+                <button onClick={closeProspectModal} style={{
                   marginLeft: 'auto', background: 'none', border: 'none', color: '#555',
                   fontSize: '22px', cursor: 'pointer', padding: '4px'
                 }}>✕</button>
@@ -1182,21 +1210,22 @@ const App = () => {
                 /* Merge picker */
                 <div>
                   <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
-                    Merge {selectedProspect.name} into…
+                    Merge {selectedProspect.name} with…
                   </div>
                   <div style={{ color: '#444', fontSize: '12px', marginBottom: '16px', lineHeight: '1.5' }}>
-                    Notes and activity combine. Other fields use whichever card was created more recently. This cannot be undone.
+                    Notes and activity combine. Other details come from the newer card (empty fields keep the older card's values). This cannot be undone.
                   </div>
-                  {prospects.filter(p => p.id !== selectedProspect.id).length === 0 ? (
+                  {mergeCandidates.length === 0 ? (
                     <div style={{ color: '#444', fontSize: '13px', fontStyle: 'italic', marginBottom: '20px' }}>No other active prospects to merge with.</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-                      {prospects.filter(p => p.id !== selectedProspect.id).map(p => (
+                      {mergeCandidates.map(p => (
                         <button
                           key={p.id}
                           disabled={saving}
                           onClick={() => {
-                            if (window.confirm(`Merge ${selectedProspect.name} and ${p.name}? This cannot be undone.`)) mergeProspects(p.id);
+                            const survivor = new Date(selectedProspect.created_at) <= new Date(p.created_at) ? p : selectedProspect;
+                            if (window.confirm(`Merge ${selectedProspect.name} and ${p.name}? The combined card keeps ${survivor.name}'s details (the newer card). This cannot be undone.`)) mergeProspects(p.id);
                           }}
                           style={{
                             width: '100%', textAlign: 'left', background: '#111', border: '1px solid #333',
@@ -1403,7 +1432,7 @@ const App = () => {
 
 
         {/* Sentinel / Infra Widget */}
-        <SentinelWidget supabase={supabase} />
+        <SentinelWidget supabase={supabase} refreshKey={sentinelRefreshKey} />
 
       </div>
 
