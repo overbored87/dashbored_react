@@ -105,7 +105,7 @@ const generateSampleData = () => ({
   demoMode: false
 });
 
-const App = () => {
+const Dashboard = () => {
   const [data, setData] = useState(generateSampleData());
   const [loading, setLoading] = useState(true);
   const [prospects, setProspects] = useState([]);
@@ -1463,6 +1463,111 @@ const App = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+// ─── Auth gate ───────────────────────────────────────────────
+// Single-user access control. The anon key in this bundle is public, so RLS
+// on the sensitive tables (dashboard_entries, prospects) admits the
+// `authenticated` role only — a logged-out visitor can neither read nor write
+// them. Sign-in is email + password against the account the Wiki app uses.
+const LoginScreen = () => {
+  const [email, setEmail] = useState('kworkfile@gmail.com');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const login = async () => {
+    setBusy(true); setError(null);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setBusy(false);
+    if (error) setError(error.message);
+    // On success, onAuthStateChange in App swaps in the dashboard.
+  };
+
+  const inputStyle = {
+    background: '#0a0a0a', border: '1px solid #333', borderRadius: '8px',
+    color: '#fff', padding: '12px', fontFamily: 'Courier New, monospace', fontSize: '15px',
+  };
+  const buttonStyle = {
+    background: busy ? '#333' : '#ff0088', border: 'none', borderRadius: '8px',
+    color: '#fff', padding: '12px', fontFamily: 'Courier New, monospace',
+    fontSize: '15px', fontWeight: 'bold', cursor: busy ? 'default' : 'pointer',
+  };
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)', fontFamily: 'Courier New, monospace',
+    }}>
+      <div style={{
+        background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '32px',
+        width: '320px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '14px',
+      }}>
+        <div style={{ color: '#00ff88', fontSize: '22px', fontWeight: 'bold', letterSpacing: '1px' }}>Dashbored</div>
+        <input
+          style={inputStyle} type="email" value={email} autoComplete="username"
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && !busy && login()}
+          placeholder="you@example.com"
+        />
+        <input
+          style={inputStyle} type="password" value={password} autoFocus autoComplete="current-password"
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && !busy && login()}
+          placeholder="password"
+        />
+        <button style={buttonStyle} onClick={login} disabled={busy}>
+          {busy ? 'Signing in…' : 'Log in'}
+        </button>
+        {error && <div style={{ color: '#ff4444', fontSize: '12px' }}>{error}</div>}
+      </div>
+    </div>
+  );
+};
+
+const App = () => {
+  const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  if (!authReady) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh',
+        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
+        color: '#00ff88', fontFamily: 'Courier New, monospace', fontSize: '18px',
+      }}>
+        …
+      </div>
+    );
+  }
+
+  if (!session) return <LoginScreen />;
+
+  return (
+    <>
+      <Dashboard />
+      <button
+        onClick={() => supabase.auth.signOut()}
+        style={{
+          position: 'fixed', bottom: '12px', right: '12px', zIndex: 9999,
+          background: '#111', border: '1px solid #333', borderRadius: '6px',
+          color: '#666', padding: '6px 10px', fontFamily: 'Courier New, monospace',
+          fontSize: '11px', cursor: 'pointer',
+        }}
+      >
+        sign out
+      </button>
+    </>
   );
 };
 
