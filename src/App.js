@@ -31,6 +31,18 @@ const STAGES = [
 const AVATAR_COLORS = ['#ff0088','#ff6600','#ffaa00','#00ff88','#00ffff','#aa88ff','#ff88cc'];
 const avatarColor = (name) => AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length];
 
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtDayMonth = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? '' : `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+};
+// "15 Aug" for a single day, "15 – 17 Aug" for a range
+const fmtLeaveRange = (r) => {
+  const start = fmtDayMonth(r.date);
+  return !r.endDate || r.endDate === r.date ? start : `${start} – ${fmtDayMonth(r.endDate)}`;
+};
+
 const StarRating = ({ rating }) => {
   if (!rating) return <span style={{ color: '#444', fontSize: '12px' }}>—</span>;
   return (
@@ -414,6 +426,7 @@ const Dashboard = () => {
     const finance = [];
     const todos = [];
     const netWorthRaw = [];
+    const leaveRaw = [];
     let demoMode = false;
 
 
@@ -449,6 +462,16 @@ const Dashboard = () => {
             reminderTime: data.reminder_time || null
           });
         }
+      } else if (entry.category === 'leave') {
+        leaveRaw.push({
+          kind: data.kind,
+          days: Number(data.days) || 0,
+          date: data.date || entry.created_at.slice(0, 10),
+          endDate: data.end_date || null,
+          leaveType: data.leave_type || 'annual',
+          notes: data.notes || null,
+          created_at: entry.created_at
+        });
       } else if (entry.category === 'settings') {
         // Read demo mode setting
         if (data.demo_mode !== undefined) {
@@ -461,7 +484,48 @@ const Dashboard = () => {
     // and carry forward the last known value for each account
     const netWorth = buildNetWorthTimeline(netWorthRaw);
 
-    return { finance, todos, netWorth, demoMode };
+    const leave = buildLeaveSummary(leaveRaw);
+
+    return { finance, todos, netWorth, leave, demoMode };
+  };
+
+  // Leave = a ledger. The most recent "balance" row is the baseline (a new
+  // leave year, or a reconciliation against what HR says); every "taken" row
+  // on or after it counts down from that. Only annual leave draws down the
+  // balance — sick/childcare/unpaid are tracked but shown separately.
+  const buildLeaveSummary = (rows) => {
+    if (rows.length === 0) return null;
+
+    const baselines = rows
+      .filter(r => r.kind === 'balance')
+      .sort((a, b) => new Date(a.date) - new Date(b.date) || new Date(a.created_at) - new Date(b.created_at));
+    const baseline = baselines[baselines.length - 1] || null;
+
+    const taken = rows
+      .filter(r => r.kind === 'taken' && (!baseline || r.date >= baseline.date))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const annualUsed = taken
+      .filter(r => r.leaveType === 'annual')
+      .reduce((sum, r) => sum + r.days, 0);
+    const otherUsed = taken
+      .filter(r => r.leaveType !== 'annual')
+      .reduce((sum, r) => sum + r.days, 0);
+
+    // Booked-but-future leave is already committed, so it counts against the
+    // balance — but surface it separately so upcoming time off is visible.
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = taken.filter(r => (r.endDate || r.date) >= today);
+
+    return {
+      entitlement: baseline ? baseline.days : null,
+      used: annualUsed,
+      otherUsed,
+      remaining: baseline ? baseline.days - annualUsed : null,
+      since: baseline ? baseline.date : null,
+      upcoming,
+      history: taken,
+    };
   };
 
   // Build a 6-month net worth timeline from snapshots
@@ -1343,7 +1407,7 @@ const Dashboard = () => {
             alignItems: 'center',
             gap: '12px'
           }}>
-            🔁 Habits
+            📊 Tallies
             <span style={{ color: '#555', fontSize: '11px', textTransform: 'none', letterSpacing: '0' }}>
               Week {Math.ceil((Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 1)) / 86400000) + 1) / 7)} of {new Date().getFullYear()}
             </span>
@@ -1416,6 +1480,98 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
+        </div>
+
+
+        {/* Leave Widget */}
+        <div className="widget" style={{
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #222 100%)',
+          border: '1px solid #333',
+          borderRadius: '16px',
+          padding: '24px',
+          gridColumn: 'span 2'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <div style={{ color: '#ffaa00', fontSize: '12px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '2px' }}>
+              🌴 Leave
+            </div>
+            {data.leave?.since && (
+              <div style={{ color: '#444', fontSize: '11px', fontFamily: 'Space Mono, monospace' }}>
+                since {fmtDayMonth(data.leave.since)}
+              </div>
+            )}
+          </div>
+
+          {!data.leave ? (
+            <div style={{ color: '#444', fontSize: '13px', fontStyle: 'italic' }}>
+              No leave logged yet — text the bot “leave balance 21”.
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '28px', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{
+                    fontFamily: 'Space Mono, monospace',
+                    fontSize: '48px',
+                    fontWeight: '700',
+                    color: data.leave.remaining < 0 ? '#ff0088' : '#ffaa00',
+                    lineHeight: '1'
+                  }}>
+                    {data.leave.remaining !== null ? data.leave.remaining : '—'}
+                  </div>
+                  <div style={{ color: '#888', fontSize: '12px', fontFamily: 'Space Mono, monospace', marginTop: '8px' }}>
+                    days left
+                  </div>
+                </div>
+
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                  <div style={{ color: '#ccc', fontSize: '13px', marginBottom: '10px' }}>
+                    {data.leave.entitlement !== null
+                      ? `${data.leave.used} of ${data.leave.entitlement} days used`
+                      : `${data.leave.used} days used · no balance set`}
+                  </div>
+                  {data.leave.entitlement > 0 && (
+                    <div style={{ background: '#111', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${Math.min(100, Math.max(0, (data.leave.used / data.leave.entitlement) * 100))}%`,
+                        height: '100%',
+                        background: data.leave.remaining < 0 ? '#ff0088' : '#ffaa00',
+                        borderRadius: '6px',
+                        transition: 'width 0.3s ease'
+                      }} />
+                    </div>
+                  )}
+                  {data.leave.otherUsed > 0 && (
+                    <div style={{ color: '#666', fontSize: '11px', fontFamily: 'Space Mono, monospace', marginTop: '10px' }}>
+                      + {data.leave.otherUsed}d non-annual (sick / other)
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {data.leave.upcoming.length > 0 && (
+                <div style={{ marginTop: '22px' }}>
+                  <div style={{ color: '#555', fontSize: '11px', fontFamily: 'Space Mono, monospace', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+                    Upcoming
+                  </div>
+                  {data.leave.upcoming.slice(0, 3).map((r, i) => (
+                    <div key={i} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      fontSize: '13px', color: '#ccc', padding: '7px 0',
+                      borderBottom: '1px solid #2a2a2a'
+                    }}>
+                      <span>
+                        {fmtLeaveRange(r)}
+                        {r.leaveType !== 'annual' && <span style={{ color: '#666' }}> · {r.leaveType}</span>}
+                        {r.notes && <span style={{ color: '#555' }}> — {r.notes}</span>}
+                      </span>
+                      <span style={{ color: '#888', fontFamily: 'Space Mono, monospace' }}>{r.days}d</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
 
